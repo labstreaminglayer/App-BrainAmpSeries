@@ -22,7 +22,6 @@ set(META_PROJECT_DESCRIPTION "Stream from BrainAmp devices via Lab Streaming Lay
 
 # THIRD PARTY LIBRARIES #
 find_package(Qt5 COMPONENTS Xml Widgets REQUIRED)
-find_package(Boost REQUIRED)
 
 # Target name
 set(target BrainAmpSeries)
@@ -45,8 +44,6 @@ target_link_libraries(${target}
 	Qt5::Xml
 	LSL::lsl
 )
-# Boost includes needed here because they aren't pulled in by any linked library above
-target_include_directories(${target} PRIVATE ${Boost_INCLUDE_DIRS})
 
 if(UNIX)
   target_link_libraries(${target} PRIVATE pthread) # for std::thread
