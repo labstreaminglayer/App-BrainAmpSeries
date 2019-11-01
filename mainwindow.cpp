@@ -1,8 +1,11 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QCloseEvent>
 #include <QDebug>
+#include <QFileDialog>
 #include <QMessageBox>
 #include <QSettings>
+#include <QStandardPaths>
 #include <chrono>
 #include <lsl_cpp.h>
 
@@ -10,7 +13,7 @@
 #include <winioctl.h>
 #else
 // dummy declarations to test compilation / static analysis on Linux/OS X
-HANDLE INVALID_HANDLE_VALUE = nullptr;
+static HANDLE INVALID_HANDLE_VALUE = nullptr;
 enum Dummy {
 	FILE_DEVICE_UNKNOWN,
 	NORMAL_PRIORITY_CLASS,
@@ -44,43 +47,30 @@ using UCHAR = unsigned char;
 const double sampling_rate = 5000.0;
 static const char *error_messages[] = {"No error.","Loss lock.","Low power.","Can't establish communication at start.","Synchronisation error"};
 
-MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(parent),ui(new Ui::MainWindow),hDevice(NULL)
-{
+MainWindow::MainWindow(QWidget *parent, const char *config_file)
+	: QMainWindow(parent), ui(new Ui::MainWindow) {
 	ui->setupUi(this);
 
-	// parse startup config file
-	load_config(config_file);
-
 	// make GUI connections
+	connect(ui->actionLoad_Configuration, &QAction::triggered, [this]() {
+		load_config(QFileDialog::getOpenFileName(
+			this, "Load Configuration File", "", "Configuration Files (*.cfg)"));
+	});
+	connect(ui->actionSave_Configuration, &QAction::triggered, [this]() {
+		save_config(QFileDialog::getSaveFileName(
+			this, "Save Configuration File", "", "Configuration Files (*.cfg)"));
+	});
 	connect(ui->actionQuit, &QAction::triggered, this, &MainWindow::close);
-	connect(ui->linkButton, &QPushButton::clicked, this, &MainWindow::link);
-	connect(ui->actionLoad_Configuration, &QAction::triggered, this, &MainWindow::load_config_dialog);
-	connect(ui->actionSave_Configuration, &QAction::triggered, this, &MainWindow::save_config_dialog);
-
+	connect(ui->linkButton, &QPushButton::clicked, this, &MainWindow::toggleRecording);
 	g_unsampledMarkers  = false;
 	g_sampledMarkers    = true;
 	g_sampledMarkersEEG = false;
+
+	QString cfgfilepath = find_config_file(config_file);
+	load_config(cfgfilepath);
 }
 
-
-void MainWindow::load_config_dialog() {
-	QString sel = QFileDialog::getOpenFileName(this,"Load Configuration File","","Configuration Files (*.cfg)");
-	if (!sel.isEmpty())
-		load_config(sel);
-}
-
-void MainWindow::save_config_dialog() {
-	QString sel = QFileDialog::getSaveFileName(this,"Save Configuration File","","Configuration Files (*.cfg)");
-	if (!sel.isEmpty())
-		save_config(sel);
-}
-
-void MainWindow::closeEvent(QCloseEvent *ev) {
-	if (reader_thread_)
-		ev->ignore();
-}
-
-void MainWindow::load_config(QString filename) {
+void MainWindow::load_config(const QString &filename) {
 	QSettings pt(filename, QSettings::IniFormat);
 
 	ui->deviceNumber->setValue(pt.value("settings/devicenumber", 1).toInt());
@@ -97,7 +87,7 @@ void MainWindow::load_config(QString filename) {
 	ui->channelLabels->setPlainText(pt.value("channels/labels").toStringList().join('\n'));
 }
 
-void MainWindow::save_config(QString filename) {
+void MainWindow::save_config(const QString &filename) {
 	QSettings pt(filename, QSettings::IniFormat);
 
 	// transfer UI content into property tree
@@ -121,16 +111,22 @@ void MainWindow::save_config(QString filename) {
 	pt.endGroup();
 }
 
+void MainWindow::closeEvent(QCloseEvent *ev) {
+	if (reader) {
+		QMessageBox::warning(this, "Recording still running", "Can't quit while recording");
+		ev->ignore();
+	}
+}
 
 // start/stop the BrainAmpSeries connection
-void MainWindow::link() {
+void MainWindow::toggleRecording() {
 	DWORD bytes_returned;
-	if (reader_thread_) {
+	if (reader) {
 		// === perform unlink action ===
 		try {
-			stop_ = true;
-			reader_thread_->join();
-			reader_thread_.reset();
+			shutdown = true;
+			reader->join();
+			reader.reset();
 			int res = SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
 			if (hDevice!=nullptr) {
 				DeviceIoControl(hDevice, IOCTL_BA_STOP, NULL, 0, NULL, 0, &bytes_returned, NULL);
@@ -208,9 +204,9 @@ void MainWindow::link() {
 				throw std::runtime_error("Could not start recording.");
 
 			// start reader thread
-			stop_ = false;
+			shutdown = false;
 			auto function_handle = sendRawStream ? &MainWindow::read_thread<int16_t> : &MainWindow::read_thread<float>;
-			reader_thread_.reset(new std::thread(function_handle,this,deviceNumber,serialNumber, impedanceMode,resolution,dcCoupling,chunkSize,channelCount,channelLabels));
+			reader.reset(new std::thread(function_handle,this,deviceNumber,serialNumber, impedanceMode,resolution,dcCoupling,chunkSize,channelCount,channelLabels));
 		}
 
 		catch(std::exception &e) {
@@ -315,7 +311,7 @@ void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedance
 
 		const T scale = std::is_same<T,float>::value ? unit_scales[resolution] : 1;
 
-		while (!stop_) {
+		while (!shutdown) {
 			// read chunk into recv_buffer
 			if(!ReadFile(hDevice, recv_buffer.data(), 2 * chunk_words, &bytes_read, NULL))
 				throw std::runtime_error("Could not read data, error code " + std::to_string(GetLastError()));
@@ -393,6 +389,40 @@ void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedance
 		// any other error
 		QMessageBox::critical(nullptr, "Error", QString("Error during processing: ") + e.what(),QMessageBox::Ok);
 	}
+}
+
+/**
+ * Find a config file to load. This is (in descending order or preference):
+ * - a file supplied on the command line
+ * - [executablename].cfg in one the the following folders:
+ *	- the current working directory
+ *	- the default config folder, e.g. '~/Library/Preferences' on OS X
+ *	- the executable folder
+ * @param filename	Optional file name supplied e.g. as command line parameter
+ * @return Path to a found config file
+ */
+QString MainWindow::find_config_file(const char *filename) {
+	if (filename) {
+		QString qfilename(filename);
+		if (!QFileInfo::exists(qfilename))
+			QMessageBox(QMessageBox::Warning, "Config file not found",
+				QStringLiteral("The file '%1' doesn't exist").arg(qfilename), QMessageBox::Ok,
+				this);
+		else
+			return qfilename;
+	}
+	QFileInfo exeInfo(QCoreApplication::applicationFilePath());
+	QString defaultCfgFilename(exeInfo.completeBaseName() + ".cfg");
+	QStringList cfgpaths;
+	cfgpaths << QDir::currentPath()
+			 << QStandardPaths::standardLocations(QStandardPaths::ConfigLocation) << exeInfo.path();
+	for (auto path : cfgpaths) {
+		QString cfgfilepath = path + QDir::separator() + defaultCfgFilename;
+		if (QFileInfo::exists(cfgfilepath)) return cfgfilepath;
+	}
+	QMessageBox(QMessageBox::Warning, "No config file not found",
+		QStringLiteral("No default config file could be found"), QMessageBox::Ok, this);
+	return "";
 }
 
 MainWindow::~MainWindow() {
