@@ -50,7 +50,7 @@ private:
 	uint16_t g_pull_dir;
 
 	Ui::MainWindow *ui;
-	std::atomic<bool> shutdown{false};  // flag indicating whether the recording thread should quit
+	std::atomic<bool> shutdown{false}; // flag indicating whether the recording thread should quit
 };
 
 #endif // MAINWINDOW_H
