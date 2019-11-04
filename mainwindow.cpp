@@ -147,28 +147,29 @@ void MainWindow::toggleRecording() {
 
 		try {
 			// get the UI parameters...
-			int deviceNumber = ui->deviceNumber->value();
-			auto channelCount = static_cast<unsigned int>(ui->channelCount->value());
-			auto impedanceMode = static_cast<unsigned char>(ui->impedanceMode->currentIndex());
-			auto resolution = static_cast<unsigned char>(ui->resolution->currentIndex());
-			auto dcCoupling = static_cast<unsigned char>(ui->dcCoupling->currentIndex());
-			int chunkSize = ui->chunkSize->value();
-			bool usePolyBox = ui->usePolyBox->checkState() == Qt::Checked;
+			ReaderConfig conf;
+			conf.deviceNumber = ui->deviceNumber->value();
+			conf.channelCount = static_cast<unsigned int>(ui->channelCount->value());
+			conf.lowImpedanceMode = ui->impedanceMode->currentIndex() == 1;
+			conf.resolution = static_cast<ReaderConfig::Resolution>(ui->resolution->currentIndex());
+			conf.dcCoupling = static_cast<unsigned char>(ui->dcCoupling->currentIndex());
+			conf.chunkSize = ui->chunkSize->value();
+			conf.usePolyBox = ui->usePolyBox->checkState() == Qt::Checked;
 			bool sendRawStream = ui->sendRawStream->isChecked();
 
 			g_unsampledMarkers = ui->unsampledMarkers->checkState() == Qt::Checked;
 			g_sampledMarkers = ui->sampledMarkers->checkState() == Qt::Checked;
 			g_sampledMarkersEEG = ui->sampledMarkersEEG->checkState() == Qt::Checked;
 
-			std::vector<std::string> channelLabels(channelCount);
+			std::vector<std::string> channelLabels(conf.channelCount);
 			for (auto &label : ui->channelLabels->toPlainText().split('\n'))
 				channelLabels.push_back(label.toStdString());
-			if (channelLabels.size() != channelCount)
+			if (channelLabels.size() != conf.channelCount)
 				throw std::runtime_error("The number of channels labels does not match the channel "
 										 "count device setting.");
 
 			// try to open the device
-			std::string deviceName = R"(\\.\BrainAmpUSB)" + std::to_string(deviceNumber);
+			std::string deviceName = R"(\\.\BrainAmpUSB)" + std::to_string(conf.deviceNumber);
 			hDevice = CreateFileA(deviceName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
 				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
 			if (hDevice == INVALID_HANDLE_VALUE)
@@ -184,14 +185,14 @@ void MainWindow::toggleRecording() {
 
 			// set up device parameters
 			BA_SETUP setup = {0};
-			setup.nChannels = channelCount;
-			for (unsigned char c = 0; c < channelCount; c++)
-				setup.nChannelList[c] = c + (usePolyBox ? -8 : 0);
-			setup.nPoints = chunkSize;
+			setup.nChannels = conf.channelCount;
+			for (unsigned char c = 0; c < conf.channelCount; c++)
+				setup.nChannelList[c] = c + (conf.usePolyBox ? -8 : 0);
+			setup.nPoints = conf.chunkSize;
 			setup.nHoldValue = 0;
-			for (UCHAR c = 0; c < channelCount; c++) setup.nResolution[c] = resolution;
-			for (UCHAR c = 0; c < channelCount; c++) setup.nDCCoupling[c] = dcCoupling;
-			setup.nLowImpedance = impedanceMode;
+			for (UCHAR c = 0; c < conf.channelCount; c++) setup.nResolution[c] = conf.resolution;
+			for (UCHAR c = 0; c < conf.channelCount; c++) setup.nDCCoupling[c] = conf.dcCoupling;
+			setup.nLowImpedance = conf.lowImpedanceMode;
 
 			pullUpHiBits = true;
 			pullUpLowBits = true;
@@ -200,22 +201,21 @@ void MainWindow::toggleRecording() {
 					sizeof(g_pull_dir), nullptr, 0, &bytes_returned, nullptr))
 				throw std::runtime_error("Could not apply pull up/down parameter.");
 
-			if (!DeviceIoControl(
-					hDevice, IOCTL_BA_SETUP, &setup, sizeof(setup), nullptr, 0, &bytes_returned, nullptr))
+			if (!DeviceIoControl(hDevice, IOCTL_BA_SETUP, &setup, sizeof(setup), nullptr, 0,
+					&bytes_returned, nullptr))
 				throw std::runtime_error("Could not apply device setup parameters.");
 
 			// start recording
 			long acquire_eeg = 1;
-			if (!DeviceIoControl(hDevice, IOCTL_BA_START, &acquire_eeg, sizeof(acquire_eeg), nullptr,
-					0, &bytes_returned, nullptr))
+			if (!DeviceIoControl(hDevice, IOCTL_BA_START, &acquire_eeg, sizeof(acquire_eeg),
+					nullptr, 0, &bytes_returned, nullptr))
 				throw std::runtime_error("Could not start recording.");
 
 			// start reader thread
 			shutdown = false;
 			auto function_handle =
 				sendRawStream ? &MainWindow::read_thread<int16_t> : &MainWindow::read_thread<float>;
-			reader.reset(new std::thread(function_handle, this, deviceNumber, serialNumber,
-				impedanceMode, resolution, dcCoupling, chunkSize, channelCount, channelLabels));
+			reader.reset(new std::thread(function_handle, this, conf));
 		}
 
 		catch (std::exception &e) {
@@ -247,22 +247,21 @@ void MainWindow::toggleRecording() {
 }
 
 // background data reader thread
-template <typename T>
-void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedanceMode,
-	int resolution, int dcCoupling, unsigned int chunkSize, unsigned int channelCount,
-	std::vector<std::string> channelLabels) {
+template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 	const float unit_scales[] = {0.1f, 0.5f, 10.f, 152.6f};
 	const char *unit_strings[] = {"100 nV", "500 nV", "10 muV", "152.6 muV"};
 	const bool sendRawStream = std::is_same<T, int16_t>::value;
 	// reserve buffers to receive and send data
-	unsigned int chunk_words = chunkSize * (channelCount + 1);
+	unsigned int chunk_words = conf.chunkSize * (conf.channelCount + 1);
 	std::vector<int16_t> recv_buffer(chunk_words, 0);
-	unsigned int outbufferChannelCount = channelCount + (g_sampledMarkersEEG ? 1 : 0);
-	std::vector<std::vector<T>> send_buffer(chunkSize, std::vector<T>(outbufferChannelCount));
+	unsigned int outbufferChannelCount = conf.channelCount + (g_sampledMarkersEEG ? 1 : 0);
+	std::vector<std::vector<T>> send_buffer(conf.chunkSize, std::vector<T>(outbufferChannelCount));
 
-	std::vector<std::vector<std::string>> marker_buffer(chunkSize, std::vector<std::string>(1));
+	std::vector<std::vector<std::string>> marker_buffer(
+		conf.chunkSize, std::vector<std::string>(1));
 	std::vector<std::string> s_mrkr;
-	std::vector<uint16_t> trigger_buffer(chunkSize);
+	std::vector<uint16_t> trigger_buffer(conf.chunkSize);
+	const std::string streamprefix = "BrainAmpSeries-" + std::to_string(conf.deviceNumber);
 
 	SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
 
@@ -277,13 +276,12 @@ void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedance
 	try {
 		// create data streaminfo and append some meta-data
 		auto stream_format = sendRawStream ? lsl::cf_int16 : lsl::cf_float32;
-		lsl::stream_info data_info("BrainAmpSeries-" + std::to_string(deviceNumber), "EEG",
-			outbufferChannelCount, sampling_rate, stream_format,
-			"BrainAmpSeries_" + std::to_string(deviceNumber) + "_" + std::to_string(serialNumber));
+		lsl::stream_info data_info(streamprefix, "EEG", outbufferChannelCount, sampling_rate,
+			stream_format, streamprefix + '_' + std::to_string(conf.serialNumber));
 		lsl::xml_element channels = data_info.desc().append_child("channels");
 		std::string postprocessing_factor =
-			sendRawStream ? std::to_string(unit_scales[resolution]) : "1";
-		for (const auto &channelLabel : channelLabels)
+			sendRawStream ? std::to_string(unit_scales[conf.resolution]) : "1";
+		for (const auto &channelLabel : conf.channelLabels)
 			channels.append_child("channel")
 				.append_child_value("label", channelLabel)
 				.append_child_value("type", "EEG")
@@ -299,41 +297,31 @@ void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedance
 		data_info.desc()
 			.append_child("amplifier")
 			.append_child("settings")
-			.append_child_value("low_impedance_mode", impedanceMode ? "true" : "false")
-			.append_child_value("resolution", unit_strings[resolution])
-			.append_child_value("resolutionfactor", std::to_string(unit_scales[resolution]))
-			.append_child_value("dc_coupling", dcCoupling ? "DC" : "AC");
+			.append_child_value("low_impedance_mode", conf.lowImpedanceMode ? "true" : "false")
+			.append_child_value("resolution", unit_strings[conf.resolution])
+			.append_child_value("resolutionfactor", std::to_string(unit_scales[conf.resolution]))
+			.append_child_value("dc_coupling", conf.dcCoupling ? "DC" : "AC");
 		data_info.desc()
 			.append_child("acquisition")
 			.append_child_value("manufacturer", "Brain Products")
-			.append_child_value("serial_number", std::to_string(serialNumber));
+			.append_child_value("serial_number", std::to_string(conf.serialNumber));
 		// make a data outlet
 		lsl::stream_outlet data_outlet(data_info);
 
 		//// create marker streaminfo and outlet
-		// lsl::stream_info marker_info("BrainAmpSeries-" +std::to_string(deviceNumber) +
-		// "-Markers","Markers",1,0,lsl::cf_string,"BrainAmpSeries_" +std::to_string(deviceNumber) +
-		// "_" + std::to_string(serialNumber) + "_markers"); lsl::stream_outlet
-		// marker_outlet(marker_info);
-
 		// create unsampled marker streaminfo and outlet
 
 		if (g_unsampledMarkers) {
-			lsl::stream_info marker_info(
-				"BrainAmpSeries-" + std::to_string(deviceNumber) + "-Markers", "Markers", 1, 0,
-				lsl::cf_string,
-				"BrainAmpSeries_" + std::to_string(deviceNumber) + "_" +
-					std::to_string(serialNumber) + "_markers");
+			lsl::stream_info marker_info(streamprefix + "-Markers", "Markers", 1, 0, lsl::cf_string,
+				streamprefix + '_' + std::to_string(conf.serialNumber) + "_markers");
 			marker_outlet.reset(new lsl::stream_outlet(marker_info));
 		}
 
 		// create sampled marker streaminfo and outlet
 		if (g_sampledMarkers) {
-			lsl::stream_info marker_info(
-				"BrainAmpSeries-" + std::to_string(deviceNumber) + "-Sampled-Markers",
-				"sampledMarkers", 1, sampling_rate, lsl::cf_string,
-				"BrainAmpSeries_" + std::to_string(deviceNumber) + "_" +
-					std::to_string(serialNumber) + "_sampled_markers");
+			lsl::stream_info marker_info(streamprefix + "-Sampled-Markers", "sampledMarkers", 1,
+				sampling_rate, lsl::cf_string,
+				streamprefix + '_' + std::to_string(conf.serialNumber) + "_sampled_markers");
 			s_marker_outlet.reset(new lsl::stream_outlet(marker_info));
 		}
 
@@ -341,11 +329,11 @@ void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedance
 		DWORD bytes_read;
 
 
-		const T scale = std::is_same<T, float>::value ? unit_scales[resolution] : 1;
+		const T scale = std::is_same<T, float>::value ? unit_scales[conf.resolution] : 1;
 
 		while (!shutdown) {
 			// read chunk into recv_buffer
-			if (!ReadFile(hDevice, recv_buffer.data(), 2 * chunk_words, &bytes_read, nullptr))
+			if (!ReadFile(hDevice, recv_buffer.data(), (int)2 * chunk_words, &bytes_read, nullptr))
 				throw std::runtime_error(
 					"Could not read data, error code " + std::to_string(GetLastError()));
 
@@ -360,19 +348,19 @@ void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedance
 
 
 				// reformat into send_buffer
-				for (unsigned int s = 0; s < chunkSize; s++) {
+				for (unsigned int s = 0; s < conf.chunkSize; s++) {
 
-					for (unsigned int c = 0; c < channelCount; c++)
-						send_buffer[s][c] = scale * recv_buffer[c + s * (channelCount + 1)];
+					for (unsigned int c = 0; c < conf.channelCount; c++)
+						send_buffer[s][c] = scale * recv_buffer[c + s * (conf.channelCount + 1)];
 
 					// buffer for handling triggers
 					// trigger_buffer[s] = recv_buffer[channelCount + s*(channelCount+1)];//???
-					mrkr = recv_buffer[channelCount + s * (channelCount + 1)];
+					mrkr = (uint16_t)recv_buffer[conf.channelCount + s * (conf.channelCount + 1)];
 					mrkr ^= g_pull_dir;
 					trigger_buffer[s] = mrkr;
 
 					if (g_sampledMarkersEEG)
-						send_buffer[s][channelCount] =
+						send_buffer[s][conf.channelCount] =
 							(mrkr == prev_mrkr ? 0.0 : static_cast<T>(mrkr));
 
 					if (g_sampledMarkers || g_unsampledMarkers) {
@@ -382,7 +370,7 @@ void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedance
 							qInfo() << "s: " << s << " mrkr: " << QString::fromStdString(s_mrkr[0]);
 							if (g_unsampledMarkers)
 								marker_outlet->push_sample(
-									&s_mrkr[0], now + (s + 1 - chunkSize) / sampling_rate);
+									&s_mrkr[0], now + (s + 1 - conf.chunkSize) / sampling_rate);
 						}
 						marker_buffer.at(s) = s_mrkr;
 					}
@@ -393,21 +381,6 @@ void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedance
 				data_outlet.push_chunk(send_buffer, now);
 
 				if (g_sampledMarkers) s_marker_outlet->push_chunk(marker_buffer, now);
-
-				// push markers into outlet
-				// if(g_unsampledMarkers) {
-				//// push markers into outlet
-				//	for (int s=0;s<chunkSize;s++){
-				//		if (USHORT us_mrkr=trigger_buffer[s]){
-				//			if (us_mrkr != us_prev_mrkr) {
-				//				std::string str= std::to_string(us_mrkr);
-				//				marker_outlet->push_sample(&str,now + (s + 1 -
-				//chunkSize)/sampling_rate); 				us_prev_mrkr = us_mrkr;
-				//			}
-				//		}
-				//	}
-				//}
-
 			} else {
 				// check for errors
 				long error_code = 0;

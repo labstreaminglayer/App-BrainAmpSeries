@@ -12,6 +12,14 @@ using HANDLE = void *;
 using ULONG = unsigned long;
 #endif
 
+struct ReaderConfig {
+	int deviceNumber;
+	enum Resolution : uint8_t { V_100nV = 0, V_500nV = 1, V_10microV = 2, V_152microV = 3 } resolution;
+	bool dcCoupling, usePolyBox, lowImpedanceMode;
+	unsigned int chunkSize, channelCount, serialNumber;
+	std::vector<std::string> channelLabels;
+};
+
 namespace Ui {
 class MainWindow;
 }
@@ -32,9 +40,7 @@ private:
 	QString find_config_file(const char *filename);
 	// background data reader thread
 	template <typename T>
-	void read_thread(int deviceNumber, ULONG serialNumber, int impedanceMode, int resolution,
-		int dcCoupling, unsigned int chunkSize, unsigned int channelCount,
-		std::vector<std::string> channelLabels);
+	void read_thread(const ReaderConfig config);
 
 	// raw config file IO
 	void load_config(const QString &filename);
