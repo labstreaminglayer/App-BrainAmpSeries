@@ -8,7 +8,7 @@ environment:
   LSLDIST_URL: "https://github.com/sccn/liblsl/releases/download"
   CMakeArgs: ""
   matrix:
-    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       QTCOMPILER: msvc2017_64
       QTVER: 5.13
 install:
@@ -20,7 +20,7 @@ install:
 - cmd: ninja --version
 build_script:
 - cmd: call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
-- cmd: cmake -S . -B build -G Ninja -DQt5_DIR=C:/Qt/%QTVER%/%QTCOMPILER%/lib/cmake/Qt5 -DBOOST_ROOT=C:/Libraries/boost_1_69_0 -DLSL_INSTALL_ROOT=LSL/ %CMakeArgs%
+- cmd: cmake -S . -B build -G Ninja -DQt5_DIR=C:/Qt/%QTVER%/%QTCOMPILER%/lib/cmake/Qt5 -DLSL_INSTALL_ROOT=LSL/ %CMakeArgs%
 - cd build
 - cmake --build . --config Release --target install
 - cpack -C Release
