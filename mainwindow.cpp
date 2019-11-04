@@ -65,9 +65,6 @@ MainWindow::MainWindow(QWidget *parent, const char *config_file)
 	});
 	connect(ui->actionQuit, &QAction::triggered, this, &MainWindow::close);
 	connect(ui->linkButton, &QPushButton::clicked, this, &MainWindow::toggleRecording);
-	g_unsampledMarkers = false;
-	g_sampledMarkers = true;
-	g_sampledMarkersEEG = false;
 
 	QString cfgfilepath = find_config_file(config_file);
 	load_config(cfgfilepath);
@@ -130,11 +127,12 @@ void MainWindow::toggleRecording() {
 			shutdown = true;
 			reader->join();
 			reader.reset();
-			int res = SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
+			SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
 			if (hDevice != nullptr) {
-				DeviceIoControl(hDevice, IOCTL_BA_STOP, NULL, 0, NULL, 0, &bytes_returned, NULL);
+				DeviceIoControl(
+					hDevice, IOCTL_BA_STOP, nullptr, 0, nullptr, 0, &bytes_returned, nullptr);
 				CloseHandle(hDevice);
-				hDevice = NULL;
+				hDevice = nullptr;
 			}
 		} catch (std::exception &e) {
 			QMessageBox::critical(this, "Error",
@@ -150,10 +148,10 @@ void MainWindow::toggleRecording() {
 		try {
 			// get the UI parameters...
 			int deviceNumber = ui->deviceNumber->value();
-			int channelCount = ui->channelCount->value();
-			int impedanceMode = ui->impedanceMode->currentIndex();
-			int resolution = ui->resolution->currentIndex();
-			int dcCoupling = ui->dcCoupling->currentIndex();
+			auto channelCount = static_cast<unsigned int>(ui->channelCount->value());
+			auto impedanceMode = static_cast<unsigned char>(ui->impedanceMode->currentIndex());
+			auto resolution = static_cast<unsigned char>(ui->resolution->currentIndex());
+			auto dcCoupling = static_cast<unsigned char>(ui->dcCoupling->currentIndex());
 			int chunkSize = ui->chunkSize->value();
 			bool usePolyBox = ui->usePolyBox->checkState() == Qt::Checked;
 			bool sendRawStream = ui->sendRawStream->isChecked();
@@ -171,8 +169,8 @@ void MainWindow::toggleRecording() {
 
 			// try to open the device
 			std::string deviceName = R"(\\.\BrainAmpUSB)" + std::to_string(deviceNumber);
-			hDevice = CreateFileA(deviceName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL,
-				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, NULL);
+			hDevice = CreateFileA(deviceName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
 			if (hDevice == INVALID_HANDLE_VALUE)
 				throw std::runtime_error(
 					"Could not open USB device. Please make sure that the device is plugged in, "
@@ -180,36 +178,36 @@ void MainWindow::toggleRecording() {
 
 			// get serial number
 			ULONG serialNumber = 0;
-			if (!DeviceIoControl(hDevice, IOCTL_BA_GET_SERIALNUMBER, NULL, 0, &serialNumber,
-					sizeof(serialNumber), &bytes_returned, NULL))
+			if (!DeviceIoControl(hDevice, IOCTL_BA_GET_SERIALNUMBER, nullptr, 0, &serialNumber,
+					sizeof(serialNumber), &bytes_returned, nullptr))
 				qWarning() << "Could not get device serial number.";
 
 			// set up device parameters
 			BA_SETUP setup = {0};
 			setup.nChannels = channelCount;
-			for (int c = 0; c < channelCount; c++)
+			for (unsigned char c = 0; c < channelCount; c++)
 				setup.nChannelList[c] = c + (usePolyBox ? -8 : 0);
 			setup.nPoints = chunkSize;
 			setup.nHoldValue = 0;
-			for (int c = 0; c < channelCount; c++) setup.nResolution[c] = resolution;
-			for (int c = 0; c < channelCount; c++) setup.nDCCoupling[c] = dcCoupling;
+			for (UCHAR c = 0; c < channelCount; c++) setup.nResolution[c] = resolution;
+			for (UCHAR c = 0; c < channelCount; c++) setup.nDCCoupling[c] = dcCoupling;
 			setup.nLowImpedance = impedanceMode;
 
 			pullUpHiBits = true;
 			pullUpLowBits = true;
 			g_pull_dir = (pullUpLowBits ? 0xff : 0) | (pullUpHiBits ? 0xff00 : 0);
 			if (!DeviceIoControl(hDevice, IOCTL_BA_DIGITALINPUT_PULL_UP, &g_pull_dir,
-					sizeof(g_pull_dir), NULL, 0, &bytes_returned, NULL))
+					sizeof(g_pull_dir), nullptr, 0, &bytes_returned, nullptr))
 				throw std::runtime_error("Could not apply pull up/down parameter.");
 
 			if (!DeviceIoControl(
-					hDevice, IOCTL_BA_SETUP, &setup, sizeof(setup), NULL, 0, &bytes_returned, NULL))
+					hDevice, IOCTL_BA_SETUP, &setup, sizeof(setup), nullptr, 0, &bytes_returned, nullptr))
 				throw std::runtime_error("Could not apply device setup parameters.");
 
 			// start recording
 			long acquire_eeg = 1;
-			if (!DeviceIoControl(hDevice, IOCTL_BA_START, &acquire_eeg, sizeof(acquire_eeg), NULL,
-					0, &bytes_returned, NULL))
+			if (!DeviceIoControl(hDevice, IOCTL_BA_START, &acquire_eeg, sizeof(acquire_eeg), nullptr,
+					0, &bytes_returned, nullptr))
 				throw std::runtime_error("Could not start recording.");
 
 			// start reader thread
@@ -225,8 +223,8 @@ void MainWindow::toggleRecording() {
 			const char *msg = "Could not open USB device.";
 			if (hDevice != nullptr) {
 				long error_code = 0;
-				if (DeviceIoControl(hDevice, IOCTL_BA_ERROR_STATE, NULL, 0, &error_code,
-						sizeof(error_code), &bytes_returned, NULL) &&
+				if (DeviceIoControl(hDevice, IOCTL_BA_ERROR_STATE, nullptr, 0, &error_code,
+						sizeof(error_code), &bytes_returned, nullptr) &&
 					bytes_returned)
 					msg = ((error_code & 0xFFFF) >= 0 && (error_code & 0xFFFF) <= 4)
 							  ? error_messages[error_code & 0xFFFF]
@@ -251,29 +249,29 @@ void MainWindow::toggleRecording() {
 // background data reader thread
 template <typename T>
 void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedanceMode,
-	int resolution, int dcCoupling, int chunkSize, int channelCount,
+	int resolution, int dcCoupling, unsigned int chunkSize, unsigned int channelCount,
 	std::vector<std::string> channelLabels) {
 	const float unit_scales[] = {0.1f, 0.5f, 10.f, 152.6f};
 	const char *unit_strings[] = {"100 nV", "500 nV", "10 muV", "152.6 muV"};
 	const bool sendRawStream = std::is_same<T, int16_t>::value;
 	// reserve buffers to receive and send data
-	int chunk_words = chunkSize * (channelCount + 1);
+	unsigned int chunk_words = chunkSize * (channelCount + 1);
 	std::vector<int16_t> recv_buffer(chunk_words, 0);
-	std::size_t outbufferChannelCount = channelCount + (g_sampledMarkersEEG ? 1 : 0);
+	unsigned int outbufferChannelCount = channelCount + (g_sampledMarkersEEG ? 1 : 0);
 	std::vector<std::vector<T>> send_buffer(chunkSize, std::vector<T>(outbufferChannelCount));
 
 	std::vector<std::vector<std::string>> marker_buffer(chunkSize, std::vector<std::string>(1));
 	std::vector<std::string> s_mrkr;
 	std::vector<uint16_t> trigger_buffer(chunkSize);
 
-	int res = SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+	SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
 
 	// for keeping track of sampled marker stream data
 	uint16_t mrkr = 0;
 	uint16_t prev_mrkr = 0;
 
 	// for keeping track of unsampled markers
-	uint16_t us_prev_mrkr = 0;
+	// uint16_t us_prev_mrkr = 0;
 
 	std::unique_ptr<lsl::stream_outlet> marker_outlet, s_marker_outlet;
 	try {
@@ -347,7 +345,7 @@ void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedance
 
 		while (!shutdown) {
 			// read chunk into recv_buffer
-			if (!ReadFile(hDevice, recv_buffer.data(), 2 * chunk_words, &bytes_read, NULL))
+			if (!ReadFile(hDevice, recv_buffer.data(), 2 * chunk_words, &bytes_read, nullptr))
 				throw std::runtime_error(
 					"Could not read data, error code " + std::to_string(GetLastError()));
 
@@ -362,9 +360,9 @@ void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedance
 
 
 				// reformat into send_buffer
-				for (int s = 0; s < chunkSize; s++) {
+				for (unsigned int s = 0; s < chunkSize; s++) {
 
-					for (int c = 0; c < channelCount; c++)
+					for (unsigned int c = 0; c < channelCount; c++)
 						send_buffer[s][c] = scale * recv_buffer[c + s * (channelCount + 1)];
 
 					// buffer for handling triggers
@@ -413,8 +411,8 @@ void MainWindow::read_thread(int deviceNumber, ULONG serialNumber, int impedance
 			} else {
 				// check for errors
 				long error_code = 0;
-				if (DeviceIoControl(hDevice, IOCTL_BA_ERROR_STATE, NULL, 0, &error_code,
-						sizeof(error_code), &bytes_read, NULL) &&
+				if (DeviceIoControl(hDevice, IOCTL_BA_ERROR_STATE, nullptr, 0, &error_code,
+						sizeof(error_code), &bytes_read, nullptr) &&
 					error_code)
 					throw std::runtime_error(
 						((error_code & 0xFFFF) >= 0 && (error_code & 0xFFFF) <= 4)
@@ -465,4 +463,4 @@ QString MainWindow::find_config_file(const char *filename) {
 	return "";
 }
 
-MainWindow::~MainWindow() { delete ui; }
+MainWindow::~MainWindow() noexcept { delete ui; }

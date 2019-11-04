@@ -33,17 +33,18 @@ private:
 	// background data reader thread
 	template <typename T>
 	void read_thread(int deviceNumber, ULONG serialNumber, int impedanceMode, int resolution,
-		int dcCoupling, int chunkSize, int channelCount, std::vector<std::string> channelLabels);
+		int dcCoupling, unsigned int chunkSize, unsigned int channelCount,
+		std::vector<std::string> channelLabels);
 
 	// raw config file IO
 	void load_config(const QString &filename);
 	void save_config(const QString &filename);
 	std::unique_ptr<std::thread> reader{nullptr};
-	HANDLE hDevice{NULL};
+	HANDLE hDevice{nullptr};
 
-	bool g_unsampledMarkers;
-	bool g_sampledMarkers;
-	bool g_sampledMarkersEEG;
+	bool g_unsampledMarkers{false};
+	bool g_sampledMarkers{true};
+	bool g_sampledMarkersEEG{false};
 
 	bool pullUpHiBits;
 	bool pullUpLowBits;
