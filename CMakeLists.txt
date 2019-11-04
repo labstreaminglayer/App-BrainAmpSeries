@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(BrainAmpSeries
 	LANGUAGES CXX
-	VERSION 0.1.0)
+	VERSION 1.13.0)
 include(Findliblsl.cmake)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
