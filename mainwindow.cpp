@@ -255,11 +255,10 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 	unsigned int chunk_words = conf.chunkSize * (conf.channelCount + 1);
 	std::vector<int16_t> recv_buffer(chunk_words, 0);
 	unsigned int outbufferChannelCount = conf.channelCount + (g_sampledMarkersEEG ? 1 : 0);
-	std::vector<std::vector<T>> send_buffer(conf.chunkSize, std::vector<T>(outbufferChannelCount));
+	std::vector<T> send_buffer(conf.chunkSize * outbufferChannelCount, 0);
 
-	std::vector<std::vector<std::string>> marker_buffer(
-		conf.chunkSize, std::vector<std::string>(1));
-	std::vector<std::string> s_mrkr;
+	std::vector<std::string> marker_buffer(conf.chunkSize, std::string());
+	std::string s_mrkr;
 	std::vector<uint16_t> trigger_buffer(conf.chunkSize);
 	const std::string streamprefix = "BrainAmpSeries-" + std::to_string(conf.deviceNumber);
 
@@ -346,31 +345,29 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 			if (bytes_read == 2 * chunk_words) {
 				double now = lsl::local_clock();
 
-
+				auto recvbuf_it = recv_buffer.begin();
+				auto sendbuf_it = send_buffer.begin();
 				// reformat into send_buffer
 				for (unsigned int s = 0; s < conf.chunkSize; s++) {
-
 					for (unsigned int c = 0; c < conf.channelCount; c++)
-						send_buffer[s][c] = scale * recv_buffer[c + s * (conf.channelCount + 1)];
+						*sendbuf_it++ = *recvbuf_it * scale;
 
 					// buffer for handling triggers
 					// trigger_buffer[s] = recv_buffer[channelCount + s*(channelCount+1)];//???
-					mrkr = (uint16_t)recv_buffer[conf.channelCount + s * (conf.channelCount + 1)];
+					mrkr = (uint16_t) *recvbuf_it++;
 					mrkr ^= g_pull_dir;
 					trigger_buffer[s] = mrkr;
 
 					if (g_sampledMarkersEEG)
-						send_buffer[s][conf.channelCount] =
-							(mrkr == prev_mrkr ? 0.0 : static_cast<T>(mrkr));
+						*sendbuf_it++ = (mrkr == prev_mrkr ? 0.0 : static_cast<T>(mrkr));
 
 					if (g_sampledMarkers || g_unsampledMarkers) {
-						s_mrkr.clear();
-						s_mrkr.push_back(mrkr == prev_mrkr ? "" : std::to_string(mrkr));
+						s_mrkr = mrkr == prev_mrkr ? "" : std::to_string(mrkr);
 						if (mrkr != prev_mrkr) {
-							qInfo() << "s: " << s << " mrkr: " << QString::fromStdString(s_mrkr[0]);
+							qInfo() << "s: " << s << " mrkr: " << QString::fromStdString(s_mrkr);
 							if (g_unsampledMarkers)
 								marker_outlet->push_sample(
-									&s_mrkr[0], now + (s + 1 - conf.chunkSize) / sampling_rate);
+									&s_mrkr, now + (s + 1 - conf.chunkSize) / sampling_rate);
 						}
 						marker_buffer.at(s) = s_mrkr;
 					}
@@ -378,9 +375,9 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 				}
 
 				// push data chunk into the outlet
-				data_outlet.push_chunk(send_buffer, now);
+				data_outlet.push_chunk_multiplexed(send_buffer, now);
 
-				if (g_sampledMarkers) s_marker_outlet->push_chunk(marker_buffer, now);
+				if (g_sampledMarkers) s_marker_outlet->push_chunk_multiplexed(marker_buffer, now);
 			} else {
 				// check for errors
 				long error_code = 0;
