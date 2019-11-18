@@ -161,10 +161,9 @@ void MainWindow::toggleRecording() {
 			g_sampledMarkers = ui->sampledMarkers->checkState() == Qt::Checked;
 			g_sampledMarkersEEG = ui->sampledMarkersEEG->checkState() == Qt::Checked;
 
-			std::vector<std::string> channelLabels(conf.channelCount);
 			for (auto &label : ui->channelLabels->toPlainText().split('\n'))
-				channelLabels.push_back(label.toStdString());
-			if (channelLabels.size() != conf.channelCount)
+				conf.channelLabels.push_back(label.toStdString());
+			if (conf.channelLabels.size() != conf.channelCount)
 				throw std::runtime_error("The number of channels labels does not match the channel "
 										 "count device setting.");
 
