@@ -325,8 +325,6 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 
 		// enter transmission loop
 		DWORD bytes_read;
-
-
 		const T scale = std::is_same<T, float>::value ? unit_scales[conf.resolution] : 1;
 
 		while (!shutdown) {
@@ -341,43 +339,7 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 				continue;
 			}
 
-			if (bytes_read == 2 * chunk_words) {
-				double now = lsl::local_clock();
-
-				auto recvbuf_it = recv_buffer.begin();
-				auto sendbuf_it = send_buffer.begin();
-				// reformat into send_buffer
-				for (unsigned int s = 0; s < conf.chunkSize; s++) {
-					for (unsigned int c = 0; c < conf.channelCount; c++)
-						*sendbuf_it++ = *recvbuf_it * scale;
-
-					// buffer for handling triggers
-					// trigger_buffer[s] = recv_buffer[channelCount + s*(channelCount+1)];//???
-					mrkr = (uint16_t) *recvbuf_it++;
-					mrkr ^= g_pull_dir;
-					trigger_buffer[s] = mrkr;
-
-					if (g_sampledMarkersEEG)
-						*sendbuf_it++ = (mrkr == prev_mrkr ? 0.0 : static_cast<T>(mrkr));
-
-					if (g_sampledMarkers || g_unsampledMarkers) {
-						s_mrkr = mrkr == prev_mrkr ? "" : std::to_string(mrkr);
-						if (mrkr != prev_mrkr) {
-							qInfo() << "s: " << s << " mrkr: " << QString::fromStdString(s_mrkr);
-							if (g_unsampledMarkers)
-								marker_outlet->push_sample(
-									&s_mrkr, now + (s + 1 - conf.chunkSize) / sampling_rate);
-						}
-						marker_buffer.at(s) = s_mrkr;
-					}
-					prev_mrkr = mrkr;
-				}
-
-				// push data chunk into the outlet
-				data_outlet.push_chunk_multiplexed(send_buffer, now);
-
-				if (g_sampledMarkers) s_marker_outlet->push_chunk_multiplexed(marker_buffer, now);
-			} else {
+			if (bytes_read != 2 * chunk_words) {
 				// check for errors
 				long error_code = 0;
 				if (DeviceIoControl(hDevice, IOCTL_BA_ERROR_STATE, nullptr, 0, &error_code,
@@ -388,9 +350,41 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 							? error_messages[error_code & 0xFFFF]
 							: "Unknown error (your driver version might not yet be supported).");
 				std::this_thread::yield();
+				continue;
 			}
-		}
 
+			// All checks completed, transform and send the data
+			double now = lsl::local_clock();
+
+			auto recvbuf_it = recv_buffer.cbegin();
+			auto sendbuf_it = send_buffer.begin();
+			// reformat into send_buffer
+			for (unsigned int s = 0; s < conf.chunkSize; s++) {
+				for (unsigned int c = 0; c < conf.channelCount; c++)
+					*sendbuf_it++ = *recvbuf_it++ * scale;
+
+				mrkr = (uint16_t)*recvbuf_it++;
+				mrkr ^= g_pull_dir;
+				trigger_buffer[s] = mrkr;
+
+				if (g_sampledMarkersEEG)
+					*sendbuf_it++ = (mrkr == prev_mrkr ? 0.0 : static_cast<T>(mrkr));
+
+				if (g_sampledMarkers || g_unsampledMarkers) {
+					s_mrkr = mrkr == prev_mrkr ? "" : std::to_string(mrkr);
+					if (mrkr != prev_mrkr && g_unsampledMarkers)
+						marker_outlet->push_sample(
+							&s_mrkr, now + (s + 1 - conf.chunkSize) / sampling_rate);
+					marker_buffer.at(s) = s_mrkr;
+				}
+				prev_mrkr = mrkr;
+			}
+
+			// push data chunk into the outlet
+			data_outlet.push_chunk_multiplexed(send_buffer, now);
+
+			if (g_sampledMarkers) s_marker_outlet->push_chunk_multiplexed(marker_buffer, now);
+		}
 	} catch (std::exception &e) {
 		// any other error
 		QMessageBox::critical(
