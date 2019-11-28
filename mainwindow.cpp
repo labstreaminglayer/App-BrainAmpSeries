@@ -8,47 +8,11 @@
 #include <QStandardPaths>
 #include <chrono>
 #include <lsl_cpp.h>
+#include <memory>
 
-#ifdef WIN32
-#include <winioctl.h>
-#else
-// dummy declarations to test compilation / static analysis on Linux/OS X
-static HANDLE INVALID_HANDLE_VALUE = nullptr;
-enum Dummy {
-	FILE_DEVICE_UNKNOWN,
-	NORMAL_PRIORITY_CLASS,
-	METHOD_BUFFERED,
-	FILE_WRITE_DATA,
-	FILE_READ_DATA,
-	GENERIC_READ,
-	GENERIC_WRITE,
-	FILE_ATTRIBUTE_NORMAL,
-	FILE_FLAG_WRITE_THROUGH,
-	OPEN_EXISTING,
-	HIGH_PRIORITY_CLASS
-};
-inline int GetCurrentProcess() { return 0; }
-inline int SetPriorityClass(int, int) { return 0; }
-inline int CTL_CODE(int, int, int, int) { return 0; }
-inline void CloseHandle(HANDLE) {}
-inline bool DeviceIoControl(HANDLE, int, void *, int, void *, int, void *, void *) { return true; }
-inline HANDLE CreateFileA(const char *, int, int, void *, int, int, void *) {
-	return static_cast<void *>(&INVALID_HANDLE_VALUE);
-}
-inline int32_t GetLastError() { return 0; }
-inline bool ReadFile(HANDLE, int16_t *, int, ulong *, void *) { return false; }
-using DWORD = unsigned long;
-using USHORT = uint16_t;
-using ULONG = unsigned long;
-using CHAR = signed char;
-using UCHAR = unsigned char;
-#endif
-
-#include "BrainAmpIoCtl.h"
+#include "brainamp.h"
 
 const double sampling_rate = 5000.0;
-static const char *error_messages[] = {"No error.", "Loss lock.", "Low power.",
-	"Can't establish communication at start.", "Synchronisation error"};
 
 MainWindow::MainWindow(QWidget *parent, const char *config_file)
 	: QMainWindow(parent), ui(new Ui::MainWindow) {
@@ -120,23 +84,19 @@ void MainWindow::closeEvent(QCloseEvent *ev) {
 
 // start/stop the BrainAmpSeries connection
 void MainWindow::toggleRecording() {
-	DWORD bytes_returned;
 	if (reader) {
 		// === perform unlink action ===
 		try {
 			shutdown = true;
 			reader->join();
 			reader.reset();
-			SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
-			if (hDevice != nullptr) {
-				DeviceIoControl(
-					hDevice, IOCTL_BA_STOP, nullptr, 0, nullptr, 0, &bytes_returned, nullptr);
-				CloseHandle(hDevice);
-				hDevice = nullptr;
-			}
+			brainamp->stopCapture();
+			brainamp = nullptr;
 		} catch (std::exception &e) {
+			if (brainamp)
+				QMessageBox::critical(this, "Error", QString::fromStdString(brainamp->getErrorState()), QMessageBox::Ok);
 			QMessageBox::critical(this, "Error",
-				QString("Could not stop the background processing: ") + e.what(), QMessageBox::Ok);
+				QStringLiteral("Could not stop the background processing: ") + e.what(), QMessageBox::Ok);
 			return;
 		}
 
@@ -168,47 +128,28 @@ void MainWindow::toggleRecording() {
 										 "count device setting.");
 
 			// try to open the device
-			std::string deviceName = R"(\\.\BrainAmpUSB)" + std::to_string(conf.deviceNumber);
-			hDevice = CreateFileA(deviceName.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
-				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
-			if (hDevice == INVALID_HANDLE_VALUE)
-				throw std::runtime_error(
-					"Could not open USB device. Please make sure that the device is plugged in, "
-					"turned on, and that the driver is installed correctly.");
+			brainamp = std::make_unique<BrainAmpUSB>(conf.deviceNumber);
 
 			// get serial number
-			ULONG serialNumber = 0;
-			if (!DeviceIoControl(hDevice, IOCTL_BA_GET_SERIALNUMBER, nullptr, 0, &serialNumber,
-					sizeof(serialNumber), &bytes_returned, nullptr))
-				qWarning() << "Could not get device serial number.";
+			// auto serialNumber = brainamp->getSerialNumber();
 
 			// set up device parameters
-			BA_SETUP setup = {0};
-			setup.nChannels = conf.channelCount;
-			for (unsigned char c = 0; c < conf.channelCount; c++)
-				setup.nChannelList[c] = c + (conf.usePolyBox ? -8 : 0);
-			setup.nPoints = conf.chunkSize;
+			BrainAmpSettings setup(conf.channelCount);
+			setup.setChunkSize(conf.chunkSize);
 			setup.nHoldValue = 0;
-			for (UCHAR c = 0; c < conf.channelCount; c++) setup.nResolution[c] = conf.resolution;
-			for (UCHAR c = 0; c < conf.channelCount; c++) setup.nDCCoupling[c] = conf.dcCoupling;
-			setup.nLowImpedance = conf.lowImpedanceMode;
+			setup.setResolution(static_cast<BrainAmpSettings::Resolution>(conf.resolution));
+			setup.setDCCoupling(conf.dcCoupling);
+			setup.setLowImpedance(conf.lowImpedanceMode);
 
 			pullUpHiBits = true;
 			pullUpLowBits = true;
-			g_pull_dir = (pullUpLowBits ? 0xff : 0) | (pullUpHiBits ? 0xff00 : 0);
+			/*g_pull_dir = (pullUpLowBits ? 0xff : 0) | (pullUpHiBits ? 0xff00 : 0);
 			if (!DeviceIoControl(hDevice, IOCTL_BA_DIGITALINPUT_PULL_UP, &g_pull_dir,
 					sizeof(g_pull_dir), nullptr, 0, &bytes_returned, nullptr))
-				throw std::runtime_error("Could not apply pull up/down parameter.");
+				throw std::runtime_error("Could not apply pull up/down parameter.");*/
 
-			if (!DeviceIoControl(hDevice, IOCTL_BA_SETUP, &setup, sizeof(setup), nullptr, 0,
-					&bytes_returned, nullptr))
-				throw std::runtime_error("Could not apply device setup parameters.");
-
-			// start recording
-			long acquire_eeg = 1;
-			if (!DeviceIoControl(hDevice, IOCTL_BA_START, &acquire_eeg, sizeof(acquire_eeg),
-					nullptr, 0, &bytes_returned, nullptr))
-				throw std::runtime_error("Could not start recording.");
+			brainamp->setupAmp(setup);
+			brainamp->startCapture();
 
 			// start reader thread
 			shutdown = false;
@@ -218,7 +159,11 @@ void MainWindow::toggleRecording() {
 		}
 
 		catch (std::exception &e) {
+			std::string msg{e.what()};
+			if (brainamp) msg += brainamp->getErrorState();
+
 			// try to decode the error message
+			/*
 			const char *msg = "Could not open USB device.";
 			if (hDevice != nullptr) {
 				long error_code = 0;
@@ -232,10 +177,9 @@ void MainWindow::toggleRecording() {
 					msg = "Could not retrieve error message because the device is closed";
 				CloseHandle(hDevice);
 				hDevice = nullptr;
-			}
+			}*/
 			QMessageBox::critical(this, "Error",
-				QString("Could not initialize the BrainAmpSeries interface: ") + e.what() +
-					" (driver message: " + msg + ")",
+				("Could not initialize the BrainAmpSeries interface: " + msg).c_str(),
 				QMessageBox::Ok);
 			return;
 		}
@@ -261,14 +205,8 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 	std::vector<uint16_t> trigger_buffer(conf.chunkSize);
 	const std::string streamprefix = "BrainAmpSeries-" + std::to_string(conf.deviceNumber);
 
-	SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
-
 	// for keeping track of sampled marker stream data
-	uint16_t mrkr = 0;
-	uint16_t prev_mrkr = 0;
-
-	// for keeping track of unsampled markers
-	// uint16_t us_prev_mrkr = 0;
+	uint16_t mrkr = 0, prev_mrkr = 0;
 
 	std::unique_ptr<lsl::stream_outlet> marker_outlet, s_marker_outlet;
 	try {
@@ -324,36 +262,11 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 		}
 
 		// enter transmission loop
-		DWORD bytes_read;
 		const T scale = std::is_same<T, float>::value ? unit_scales[conf.resolution] : 1;
 
 		while (!shutdown) {
-			// read chunk into recv_buffer
-			if (!ReadFile(hDevice, recv_buffer.data(), (int)2 * chunk_words, &bytes_read, nullptr))
-				throw std::runtime_error(
-					"Could not read data, error code " + std::to_string(GetLastError()));
+			brainamp->readChunk(recv_buffer.begin(), recv_buffer.end());
 
-			if (bytes_read <= 0) {
-				// CPU saver, this is ok even at higher sampling rates
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
-				continue;
-			}
-
-			if (bytes_read != 2 * chunk_words) {
-				// check for errors
-				long error_code = 0;
-				if (DeviceIoControl(hDevice, IOCTL_BA_ERROR_STATE, nullptr, 0, &error_code,
-						sizeof(error_code), &bytes_read, nullptr) &&
-					error_code)
-					throw std::runtime_error(
-						((error_code & 0xFFFF) >= 0 && (error_code & 0xFFFF) <= 4)
-							? error_messages[error_code & 0xFFFF]
-							: "Unknown error (your driver version might not yet be supported).");
-				std::this_thread::yield();
-				continue;
-			}
-
-			// All checks completed, transform and send the data
 			double now = lsl::local_clock();
 
 			auto recvbuf_it = recv_buffer.cbegin();

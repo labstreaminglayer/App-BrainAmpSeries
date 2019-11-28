@@ -4,14 +4,6 @@
 #include <atomic>
 #include <thread>
 
-#ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#else
-using HANDLE = void *;
-using ULONG = unsigned long;
-#endif
-
 struct ReaderConfig {
 	int deviceNumber;
 	enum Resolution : uint8_t { V_100nV = 0, V_500nV = 1, V_10microV = 2, V_152microV = 3 } resolution;
@@ -46,7 +38,7 @@ private:
 	void load_config(const QString &filename);
 	void save_config(const QString &filename);
 	std::unique_ptr<std::thread> reader{nullptr};
-	HANDLE hDevice{nullptr};
+	std::unique_ptr<class BrainAmpUSB> brainamp;
 
 	bool g_unsampledMarkers{false};
 	bool g_sampledMarkers{true};

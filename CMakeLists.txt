@@ -11,7 +11,9 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Threads REQUIRED)
 
-add_executable(${PROJECT_NAME} MACOSX_BUNDLE WIN32
+add_executable(${PROJECT_NAME} MACOSX_BUNDLE #WIN32
+	brainamp.h
+	brainamp.cpp
 	main.cpp
 	mainwindow.cpp
 	mainwindow.h
@@ -24,8 +26,7 @@ target_link_libraries(${PROJECT_NAME}
 	Threads::Threads
 	LSL::lsl
 )
-
-
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 
 installLSLApp(${PROJECT_NAME})
 installLSLAuxFiles(${PROJECT_NAME}
