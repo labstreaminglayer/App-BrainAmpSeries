@@ -30,16 +30,17 @@ struct BrainAmpSettings {
 	uint8_t nLowImpedance = 0; // Low impedance i.e. 10 MOhm, (0 = > 100MOhm)
 
 	// sane defaults
-	BrainAmpSettings(uint32_t channels, bool usePolyBox = false) noexcept
+	BrainAmpSettings(uint32_t channels, bool usePolyBox = false, int offset = 0) noexcept
 		: nChannels(channels) {
 		std::fill_n(nResolution, 256, Resolution::V_10microV);
-		resize(channels);
+		resize(channels, usePolyBox, offset);
 	}
 
-	void resize(unsigned int channels, bool usePolyBox = false) noexcept {
+	void resize(unsigned int channels, bool usePolyBox = false, int offset = 0) noexcept {
 		assert(channels <= 128);
 		nChannels = channels;
-		for (auto i = 0u; i < nChannels; ++i) nChannelList[i] = i + (usePolyBox ? -8 : 0);
+		if (usePolyBox) offset -= 8;
+		for (auto i = 0u; i < nChannels; ++i) nChannelList[i] = i + offset;
 		std::fill(nChannelList + nChannels, nChannelList + 256, 0);
 	}
 	unsigned int channelCount() const { return nChannels; }

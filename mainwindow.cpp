@@ -38,6 +38,7 @@ void MainWindow::load_config(const QString &filename) {
 	QSettings pt(filename, QSettings::IniFormat);
 
 	ui->deviceNumber->setValue(pt.value("settings/devicenumber", 1).toInt());
+	ui->input_channelOffset->setValue(pt.value("settings/channelOffset", 0).toInt());
 	ui->channelCount->setValue(pt.value("settings/channelcount", 32).toInt());
 	ui->impedanceMode->setCurrentIndex(pt.value("settings/impedancemode", 0).toInt());
 	ui->resolution->setCurrentIndex(pt.value("settings/resolution", 0).toInt());
@@ -58,6 +59,7 @@ void MainWindow::save_config(const QString &filename) {
 	pt.beginGroup("settings");
 	pt.setValue("devicenumber", ui->deviceNumber->value());
 	pt.setValue("devicenumber", ui->deviceNumber->value());
+	pt.setValue("channelOffset", ui->input_channelOffset->value());
 	pt.setValue("channelcount", ui->channelCount->value());
 	pt.setValue("impedancemode", ui->impedanceMode->currentIndex());
 	pt.setValue("resolution", ui->resolution->currentIndex());
@@ -110,6 +112,7 @@ void MainWindow::toggleRecording() {
 			ReaderConfig conf;
 			conf.deviceNumber = ui->deviceNumber->value();
 			conf.channelCount = static_cast<unsigned int>(ui->channelCount->value());
+			conf.channelOffset = ui->input_channelOffset->value();
 			conf.lowImpedanceMode = ui->impedanceMode->currentIndex() == 1;
 			conf.resolution = static_cast<ReaderConfig::Resolution>(ui->resolution->currentIndex());
 			conf.dcCoupling = static_cast<unsigned char>(ui->dcCoupling->currentIndex());
@@ -134,7 +137,7 @@ void MainWindow::toggleRecording() {
 			// auto serialNumber = brainamp->getSerialNumber();
 
 			// set up device parameters
-			BrainAmpSettings setup(conf.channelCount);
+			BrainAmpSettings setup(conf.channelCount, conf.usePolyBox, conf.channelOffset);
 			setup.setChunkSize(conf.chunkSize);
 			setup.nHoldValue = 0;
 			setup.setResolution(static_cast<BrainAmpSettings::Resolution>(conf.resolution));
@@ -236,7 +239,8 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 			.append_child_value("low_impedance_mode", conf.lowImpedanceMode ? "true" : "false")
 			.append_child_value("resolution", unit_strings[conf.resolution])
 			.append_child_value("resolutionfactor", std::to_string(unit_scales[conf.resolution]))
-			.append_child_value("dc_coupling", conf.dcCoupling ? "DC" : "AC");
+			.append_child_value("dc_coupling", conf.dcCoupling ? "DC" : "AC")
+			.append_child_value("channel_offset", std::to_string(conf.channelOffset));
 		data_info.desc()
 			.append_child("acquisition")
 			.append_child_value("manufacturer", "Brain Products")
