@@ -2,6 +2,14 @@
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>562</width>
+    <height>496</height>
+   </rect>
+  </property>
   <property name="windowTitle">
    <string>BrainAmpSeries Connector</string>
   </property>
@@ -15,9 +23,6 @@
       <layout class="QGridLayout" name="gridLayout">
        <item row="0" column="0">
         <widget class="QPlainTextEdit" name="channelLabels">
-         <property name="tabChangesFocus">
-          <bool>true</bool>
-         </property>
          <property name="plainText">
           <string>Fp1
 Fp2
@@ -69,7 +74,7 @@ PO10 </string>
           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
          </property>
          <item row="0" column="0">
-          <widget class="QLabel" name="label_device">
+          <widget class="QLabel" name="label_4">
            <property name="text">
             <string>Device Number</string>
            </property>
@@ -89,7 +94,7 @@ PO10 </string>
           </widget>
          </item>
          <item row="1" column="0">
-          <widget class="QLabel" name="label_nchannels">
+          <widget class="QLabel" name="label_2">
            <property name="text">
             <string>Number of Channels</string>
            </property>
@@ -112,7 +117,7 @@ PO10 </string>
           </widget>
          </item>
          <item row="2" column="0">
-          <widget class="QLabel" name="label_chunksize">
+          <widget class="QLabel" name="label">
            <property name="text">
             <string>Chunk Size</string>
            </property>
@@ -134,14 +139,14 @@ PO10 </string>
            </property>
           </widget>
          </item>
-         <item row="3" column="0">
-          <widget class="QLabel" name="label_impedance">
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_3">
            <property name="text">
             <string>Impedance Mode</string>
            </property>
           </widget>
          </item>
-         <item row="3" column="1">
+         <item row="4" column="1">
           <widget class="QComboBox" name="impedanceMode">
            <property name="toolTip">
             <string>The default setting is to operate in high-impedance mode (less need for perfect electrode contact)</string>
@@ -158,14 +163,14 @@ PO10 </string>
            </item>
           </widget>
          </item>
-         <item row="4" column="0">
-          <widget class="QLabel" name="label_resultion">
+         <item row="5" column="0">
+          <widget class="QLabel" name="label_5">
            <property name="text">
             <string>Resolution</string>
            </property>
           </widget>
          </item>
-         <item row="4" column="1">
+         <item row="5" column="1">
           <widget class="QComboBox" name="resolution">
            <property name="toolTip">
             <string>Resolution of the measured signal</string>
@@ -192,14 +197,14 @@ PO10 </string>
            </item>
           </widget>
          </item>
-         <item row="5" column="0">
-          <widget class="QLabel" name="label_dc">
+         <item row="6" column="0">
+          <widget class="QLabel" name="label_6">
            <property name="text">
             <string>DC Coupling</string>
            </property>
           </widget>
          </item>
-         <item row="5" column="1">
+         <item row="6" column="1">
           <widget class="QComboBox" name="dcCoupling">
            <property name="toolTip">
             <string>The default is AC</string>
@@ -216,7 +221,7 @@ PO10 </string>
            </item>
           </widget>
          </item>
-         <item row="6" column="0">
+         <item row="7" column="0">
           <widget class="QCheckBox" name="usePolyBox">
            <property name="enabled">
             <bool>true</bool>
@@ -229,10 +234,20 @@ PO10 </string>
            </property>
           </widget>
          </item>
-         <item row="7" column="0" colspan="2">
+         <item row="8" column="0" colspan="2">
           <widget class="QCheckBox" name="sendRawStream">
            <property name="text">
             <string>Send Raw Stream (int16_t)</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QComboBox" name="cbSamplingRate"/>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="label_7">
+           <property name="text">
+            <string>Sampling Rate</string>
            </property>
           </widget>
          </item>
@@ -268,14 +283,7 @@ PO10 </string>
            </property>
           </widget>
          </item>
-         <item row="1" column="0">
-          <widget class="QCheckBox" name="sampledMarkers">
-           <property name="text">
-            <string>Sampled String Markers</string>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="0">
+         <item row="2" column="0">
           <widget class="QCheckBox" name="sampledMarkersEEG">
            <property name="text">
             <string>Floating Point EEG Channel</string>
@@ -318,13 +326,13 @@ PO10 </string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>524</width>
-     <height>30</height>
+     <width>562</width>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>&amp;File</string>
+     <string>File</string>
     </property>
     <addaction name="actionLoad_Configuration"/>
     <addaction name="actionSave_Configuration"/>
@@ -336,15 +344,12 @@ PO10 </string>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionLoad_Configuration">
    <property name="text">
-    <string>&amp;Load Configuration</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+L</string>
+    <string>Load Configuration</string>
    </property>
   </action>
   <action name="actionSave_Configuration">
    <property name="text">
-    <string>&amp;Save Configuration</string>
+    <string>Save Configuration</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
@@ -352,7 +357,7 @@ PO10 </string>
   </action>
   <action name="actionQuit">
    <property name="text">
-    <string>&amp;Quit</string>
+    <string>Quit</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Q</string>
@@ -370,7 +375,6 @@ PO10 </string>
   <tabstop>dcCoupling</tabstop>
   <tabstop>usePolyBox</tabstop>
   <tabstop>unsampledMarkers</tabstop>
-  <tabstop>sampledMarkers</tabstop>
   <tabstop>sampledMarkersEEG</tabstop>
   <tabstop>linkButton</tabstop>
  </tabstops>

@@ -35,6 +35,8 @@ private slots:
 	// start the BrainAmpSeries connection
 	void toggleRecording();
 
+	void setSamplingRate();
+
 private:
 	// function for loading / saving the config file
 	QString find_config_file(const char *filename);
@@ -49,7 +51,6 @@ private:
 	HANDLE hDevice{nullptr};
 
 	bool g_unsampledMarkers{false};
-	bool g_sampledMarkers{true};
 	bool g_sampledMarkersEEG{false};
 
 	bool pullUpHiBits;

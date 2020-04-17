@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "Downsampler.h"
 #include <QCloseEvent>
 #include <QDebug>
 #include <QFileDialog>
@@ -8,6 +9,7 @@
 #include <QStandardPaths>
 #include <chrono>
 #include <lsl_cpp.h>
+#include <iostream>
 
 #ifdef WIN32
 #include <winioctl.h>
@@ -46,7 +48,10 @@ using UCHAR = unsigned char;
 
 #include "BrainAmpIoCtl.h"
 
-const double sampling_rate = 5000.0;
+const int sampling_rates[] = { 5000, 2500, 1000, 500, 250, 200, 100 };
+double sampling_rate = (double)sampling_rates[0];
+const int downsampling_factors[] = { 1, 2, 5, 10, 20, 25, 50 };
+int downsampling_factor = downsampling_factors[0];
 static const char *error_messages[] = {"No error.", "Loss lock.", "Low power.",
 	"Can't establish communication at start.", "Synchronisation error"};
 
@@ -63,11 +68,44 @@ MainWindow::MainWindow(QWidget *parent, const char *config_file)
 		save_config(QFileDialog::getSaveFileName(
 			this, "Save Configuration File", "", "Configuration Files (*.cfg)"));
 	});
+	connect(ui->cbSamplingRate, SIGNAL(currentIndexChanged(int)), this, SLOT(setSamplingRate()));
 	connect(ui->actionQuit, &QAction::triggered, this, &MainWindow::close);
 	connect(ui->linkButton, &QPushButton::clicked, this, &MainWindow::toggleRecording);
-
+	for (int i = 0; i < 7; i++)
+		ui->cbSamplingRate->addItem(QString::fromStdString(std::to_string(sampling_rates[i])));
 	QString cfgfilepath = find_config_file(config_file);
 	load_config(cfgfilepath);
+}
+
+
+void MainWindow::setSamplingRate()
+{
+	sampling_rate = sampling_rates[ui->cbSamplingRate->currentIndex()];
+	downsampling_factor = downsampling_factors[ui->cbSamplingRate->currentIndex()];
+}
+
+int getSamplingRateIndex(int nSamplingRate)
+{
+	switch (nSamplingRate)
+	{
+	case 5000:
+		return 0;
+	case 2500:
+		return 1;
+	case 1000:
+		return 2;
+	case 500:
+		return 3;
+	case 250:
+		return 4;
+	case 200:
+		return 5;
+	case 100:
+		return 6;
+	default:
+		break;
+	}
+	return 0;
 }
 
 void MainWindow::load_config(const QString &filename) {
@@ -76,13 +114,14 @@ void MainWindow::load_config(const QString &filename) {
 	ui->deviceNumber->setValue(pt.value("settings/devicenumber", 1).toInt());
 	ui->channelCount->setValue(pt.value("settings/channelcount", 32).toInt());
 	ui->impedanceMode->setCurrentIndex(pt.value("settings/impedancemode", 0).toInt());
+	ui->cbSamplingRate->setCurrentIndex(getSamplingRateIndex(pt.value("settings/samplingrate", 500).toInt()));
+	setSamplingRate();
 	ui->resolution->setCurrentIndex(pt.value("settings/resolution", 0).toInt());
 	ui->dcCoupling->setCurrentIndex(pt.value("settings/dccoupling", 0).toInt());
 	ui->chunkSize->setValue(pt.value("settings/chunksize", 32).toInt());
 	ui->usePolyBox->setChecked(pt.value("settings/usepolybox", false).toBool());
 	ui->sendRawStream->setChecked(pt.value("settings/sendrawstream", false).toBool());
 	ui->unsampledMarkers->setChecked(pt.value("settings/unsampledmarkers", false).toBool());
-	ui->sampledMarkers->setChecked(pt.value("settings/sampledmarkers", true).toBool());
 	ui->sampledMarkersEEG->setChecked(pt.value("settings/sampledmarkersEEG", false).toBool());
 	ui->channelLabels->setPlainText(pt.value("channels/labels").toStringList().join('\n'));
 }
@@ -95,6 +134,7 @@ void MainWindow::save_config(const QString &filename) {
 	pt.setValue("devicenumber", ui->deviceNumber->value());
 	pt.setValue("devicenumber", ui->deviceNumber->value());
 	pt.setValue("channelcount", ui->channelCount->value());
+	pt.setValue("samplingrate", ui->cbSamplingRate->currentText());
 	pt.setValue("impedancemode", ui->impedanceMode->currentIndex());
 	pt.setValue("resolution", ui->resolution->currentIndex());
 	pt.setValue("dccoupling", ui->dcCoupling->currentIndex());
@@ -102,7 +142,6 @@ void MainWindow::save_config(const QString &filename) {
 	pt.setValue("usepolybox", ui->usePolyBox->isChecked());
 	pt.setValue("sendrawstream", ui->sendRawStream->isChecked());
 	pt.setValue("unsampledmarkers", ui->unsampledMarkers->isChecked());
-	pt.setValue("sampledmarkers", ui->sampledMarkers->isChecked());
 	pt.setValue("sampledmarkersEEG", ui->sampledMarkersEEG->isChecked());
 	pt.endGroup();
 
@@ -147,6 +186,7 @@ void MainWindow::toggleRecording() {
 
 		try {
 			// get the UI parameters...
+			setSamplingRate();
 			ReaderConfig conf;
 			conf.deviceNumber = ui->deviceNumber->value();
 			conf.channelCount = static_cast<unsigned int>(ui->channelCount->value());
@@ -158,7 +198,7 @@ void MainWindow::toggleRecording() {
 			bool sendRawStream = ui->sendRawStream->isChecked();
 
 			g_unsampledMarkers = ui->unsampledMarkers->checkState() == Qt::Checked;
-			g_sampledMarkers = ui->sampledMarkers->checkState() == Qt::Checked;
+			
 			g_sampledMarkersEEG = ui->sampledMarkersEEG->checkState() == Qt::Checked;
 
 			for (auto &label : ui->channelLabels->toPlainText().split('\n'))
@@ -187,14 +227,14 @@ void MainWindow::toggleRecording() {
 			setup.nChannels = conf.channelCount;
 			for (unsigned char c = 0; c < conf.channelCount; c++)
 				setup.nChannelList[c] = c + (conf.usePolyBox ? -8 : 0);
-			setup.nPoints = conf.chunkSize;
+			setup.nPoints = conf.chunkSize * downsampling_factor;
 			setup.nHoldValue = 0;
 			for (UCHAR c = 0; c < conf.channelCount; c++) setup.nResolution[c] = conf.resolution;
 			for (UCHAR c = 0; c < conf.channelCount; c++) setup.nDCCoupling[c] = conf.dcCoupling;
 			setup.nLowImpedance = conf.lowImpedanceMode;
 
-			pullUpHiBits = true;
-			pullUpLowBits = true;
+			pullUpHiBits = false;
+			pullUpLowBits = false;
 			g_pull_dir = (pullUpLowBits ? 0xff : 0) | (pullUpHiBits ? 0xff00 : 0);
 			if (!DeviceIoControl(hDevice, IOCTL_BA_DIGITALINPUT_PULL_UP, &g_pull_dir,
 					sizeof(g_pull_dir), nullptr, 0, &bytes_returned, nullptr))
@@ -251,31 +291,40 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 	const char *unit_strings[] = {"100 nV", "500 nV", "10 muV", "152.6 muV"};
 	const bool sendRawStream = std::is_same<T, int16_t>::value;
 	// reserve buffers to receive and send data
-	unsigned int chunk_words = conf.chunkSize * (conf.channelCount + 1);
+	unsigned int chunk_words = conf.chunkSize * (conf.channelCount + 1) * downsampling_factor;
 	std::vector<int16_t> recv_buffer(chunk_words, 0);
+	int sz = sizeof(int16_t);
+	int nTransferSz = sz * (int)recv_buffer.size();
 	unsigned int outbufferChannelCount = conf.channelCount + (g_sampledMarkersEEG ? 1 : 0);
 	std::vector<T> send_buffer(conf.chunkSize * outbufferChannelCount, 0);
-
+	std::vector<T> inter_buffer(conf.chunkSize * downsampling_factor, 0);
+	std::vector<Downsampler<T>> downsamplers;
+	bool bDoFiltering = (sampling_rate == 5000) ? false : true;
+	for (int i = 0; i < conf.channelCount; i++)
+		downsamplers.push_back(Downsampler<T>(downsampling_factor, conf.chunkSize, bDoFiltering));
+	// trigger downsampler shouldn't filter, just downsample
+	downsamplers.push_back(Downsampler<T>(downsampling_factor, conf.chunkSize, false));
 	std::vector<std::string> marker_buffer(conf.chunkSize, std::string());
 	std::string s_mrkr;
-	std::vector<uint16_t> trigger_buffer(conf.chunkSize);
+
 	const std::string streamprefix = "BrainAmpSeries-" + std::to_string(conf.deviceNumber);
 
 	SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
 
 	// for keeping track of sampled marker stream data
 	uint16_t mrkr = 0;
-	uint16_t prev_mrkr = 0;
+	// initialize this to something unreasonable in case the first marker is in fact 0
+	uint16_t prev_mrkr = 9999;
 
 	// for keeping track of unsampled markers
 	// uint16_t us_prev_mrkr = 0;
 
-	std::unique_ptr<lsl::stream_outlet> marker_outlet, s_marker_outlet;
+	std::unique_ptr<lsl::stream_outlet> marker_outlet;
 	try {
 		// create data streaminfo and append some meta-data
 		auto stream_format = sendRawStream ? lsl::cf_int16 : lsl::cf_float32;
 		lsl::stream_info data_info(streamprefix, "EEG", outbufferChannelCount, sampling_rate,
-			stream_format, streamprefix + '_' + std::to_string(conf.serialNumber));
+			stream_format, streamprefix + '_' + std::to_string(conf.serialNumber) + "_SR-" + std::to_string(sampling_rate));
 		lsl::xml_element channels = data_info.desc().append_child("channels");
 		std::string postprocessing_factor =
 			sendRawStream ? std::to_string(unit_scales[conf.resolution]) : "1";
@@ -315,13 +364,7 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 			marker_outlet.reset(new lsl::stream_outlet(marker_info));
 		}
 
-		// create sampled marker streaminfo and outlet
-		if (g_sampledMarkers) {
-			lsl::stream_info marker_info(streamprefix + "-Sampled-Markers", "sampledMarkers", 1,
-				sampling_rate, lsl::cf_string,
-				streamprefix + '_' + std::to_string(conf.serialNumber) + "_sampled_markers");
-			s_marker_outlet.reset(new lsl::stream_outlet(marker_info));
-		}
+
 
 		// enter transmission loop
 		DWORD bytes_read;
@@ -329,7 +372,7 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 
 		while (!shutdown) {
 			// read chunk into recv_buffer
-			if (!ReadFile(hDevice, recv_buffer.data(), (int)2 * chunk_words, &bytes_read, nullptr))
+			if (!ReadFile(hDevice, &recv_buffer[0], (int)2 * chunk_words, &bytes_read, nullptr))
 				throw std::runtime_error(
 					"Could not read data, error code " + std::to_string(GetLastError()));
 
@@ -358,38 +401,51 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 
 			auto recvbuf_it = recv_buffer.cbegin();
 			auto sendbuf_it = send_buffer.begin();
-			// reformat into send_buffer
-			for (unsigned int s = 0; s < conf.chunkSize; s++) {
-				for (unsigned int c = 0; c < conf.channelCount; c++)
-					*sendbuf_it++ = *recvbuf_it++ * scale;
+			auto inter_it = inter_buffer.begin();
 
-				mrkr = (uint16_t)*recvbuf_it++;
+			for (unsigned int c = 0; c < conf.channelCount; c++)
+			{
+				inter_it = inter_buffer.begin();
+				for (unsigned int s = 0; s < conf.chunkSize*downsampling_factor; s++)
+					*inter_it++ = *(recvbuf_it + (c + s * (conf.channelCount + 1)));
+				downsamplers[c].Downsample(&inter_buffer[0]);
+			}
+			for (unsigned int c = 0; c < conf.channelCount; c++)
+				for (unsigned int s = 0; s < conf.chunkSize; s++)
+					*(sendbuf_it + (s * conf.channelCount + c)) = downsamplers[c].m_ptDataOut[s] * scale;
+
+			inter_it = inter_buffer.begin();
+			for (unsigned int s = 0; s < conf.chunkSize * downsampling_factor; s++)
+				*inter_it++ = *(recvbuf_it + (conf.channelCount + s * (conf.channelCount + 1)));
+			downsamplers[conf.channelCount].Downsample(&inter_buffer[0]);
+			for (unsigned int s = 0; s < conf.chunkSize; s++)
+			{
+				mrkr = (uint16_t)downsamplers[conf.channelCount].m_ptDataOut[s];
 				mrkr ^= g_pull_dir;
-				trigger_buffer[s] = mrkr;
 
 				if (g_sampledMarkersEEG)
-					*sendbuf_it++ = (mrkr == prev_mrkr ? 0.0 : static_cast<T>(mrkr));
+					*(sendbuf_it + (s * conf.channelCount+1 + conf.channelCount)) = (mrkr == prev_mrkr ? 0.0 : static_cast<T>(mrkr));
 
-				if (g_sampledMarkers || g_unsampledMarkers) {
+				if (g_unsampledMarkers) 
+				{
 					s_mrkr = mrkr == prev_mrkr ? "" : std::to_string(mrkr);
-					if (mrkr != prev_mrkr && g_unsampledMarkers)
-						marker_outlet->push_sample(
-							&s_mrkr, now + (s + 1 - conf.chunkSize) / sampling_rate);
-					marker_buffer.at(s) = s_mrkr;
+					if (mrkr != prev_mrkr) 
+						if (g_unsampledMarkers)marker_outlet->push_sample(&s_mrkr, now + (s + 1 - conf.chunkSize) / sampling_rate);
 				}
 				prev_mrkr = mrkr;
 			}
 
 			// push data chunk into the outlet
 			data_outlet.push_chunk_multiplexed(send_buffer, now);
-
-			if (g_sampledMarkers) s_marker_outlet->push_chunk_multiplexed(marker_buffer, now);
 		}
 	} catch (std::exception &e) {
 		// any other error
-		QMessageBox::critical(
-			nullptr, "Error", QString("Error during processing: ") + e.what(), QMessageBox::Ok);
+		std::cout << "Exception in read thread: " << e.what();
+		//QMessageBox::critical(
+			//nullptr, "Error", QString("Error during processing: ") + e.what(), QMessageBox::Ok);
 	}
+	int lala = 0;
+	lala = 1;
 }
 
 /**

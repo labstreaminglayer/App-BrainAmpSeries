@@ -1,4 +1,9 @@
 ui_*.h
-/build*/
-/CMakeLists.txt.user
-/CMakeLists.json
+BrainAmpSeries/.vs/
+BrainAmpSeries/bin/
+BrainAmpSeries/Debug/
+BrainAmpSeries/Release/
+*.dll
+*.exe
+*.bit
+*.aps
