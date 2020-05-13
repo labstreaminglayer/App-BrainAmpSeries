@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8)
 project(BrainAmpSeries
 	LANGUAGES CXX
 	VERSION 1.13.0)
@@ -19,13 +19,16 @@ add_executable(${PROJECT_NAME} MACOSX_BUNDLE #WIN32
 	mainwindow.h
 	mainwindow.ui
 	BrainAmpIoCtl.h
+	firdn.hpp
 )
+
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE
 	Qt5::Widgets
 	Threads::Threads
 	LSL::lsl
 )
+
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 
 installLSLApp(${PROJECT_NAME})

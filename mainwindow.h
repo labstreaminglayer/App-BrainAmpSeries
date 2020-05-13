@@ -2,7 +2,10 @@
 #define MAINWINDOW_H
 #include <QMainWindow>
 #include <atomic>
+#include <memory>
 #include <thread>
+
+#include "firdn.hpp"
 
 struct ReaderConfig {
 	int deviceNumber, channelOffset;
@@ -10,6 +13,15 @@ struct ReaderConfig {
 	bool dcCoupling, usePolyBox, lowImpedanceMode;
 	unsigned int chunkSize, channelCount, serialNumber;
 	std::vector<std::string> channelLabels;
+	std::shared_ptr<firdn::Chain<uint16_t>> downsampler;
+
+	bool g_unsampledMarkers{false};
+	bool g_sampledMarkers{true};
+	bool g_sampledMarkersEEG{false};
+
+	bool pullUpHiBits{true};
+	bool pullUpLowBits{true};
+	uint16_t g_pull_dir;
 };
 
 namespace Ui {
@@ -30,26 +42,19 @@ private slots:
 private:
 	// function for loading / saving the config file
 	QString find_config_file(const char *filename);
-	// background data reader thread
-	template <typename T>
-	void read_thread(const ReaderConfig config);
 
 	// raw config file IO
 	void load_config(const QString &filename);
 	void save_config(const QString &filename);
 	std::unique_ptr<std::thread> reader{nullptr};
-	std::unique_ptr<class BrainAmpUSB> brainamp;
-
-	bool g_unsampledMarkers{false};
-	bool g_sampledMarkers{true};
-	bool g_sampledMarkersEEG{false};
-
-	bool pullUpHiBits;
-	bool pullUpLowBits;
-	uint16_t g_pull_dir;
+	std::shared_ptr<class BrainAmpUSB> brainamp;
 
 	Ui::MainWindow *ui;
 	std::atomic<bool> shutdown{false}; // flag indicating whether the recording thread should quit
 };
+
+// background data reader thread
+template <typename T>
+void read_thread(const ReaderConfig conf, std::shared_ptr<class BrainAmpUSB> brainamp, std::atomic<bool>& shutdown);
 
 #endif // MAINWINDOW_H

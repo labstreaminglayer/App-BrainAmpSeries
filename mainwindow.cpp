@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "firdn.hpp"
 #include "ui_mainwindow.h"
 #include <QCloseEvent>
 #include <QDebug>
@@ -50,6 +51,7 @@ void MainWindow::load_config(const QString &filename) {
 	ui->sampledMarkers->setChecked(pt.value("settings/sampledmarkers", true).toBool());
 	ui->sampledMarkersEEG->setChecked(pt.value("settings/sampledmarkersEEG", false).toBool());
 	ui->channelLabels->setPlainText(pt.value("channels/labels").toStringList().join('\n'));
+	ui->inp_downsampling->setText(pt.value("settings/downsampling", "").toString());
 }
 
 void MainWindow::save_config(const QString &filename) {
@@ -70,6 +72,7 @@ void MainWindow::save_config(const QString &filename) {
 	pt.setValue("unsampledmarkers", ui->unsampledMarkers->isChecked());
 	pt.setValue("sampledmarkers", ui->sampledMarkers->isChecked());
 	pt.setValue("sampledmarkersEEG", ui->sampledMarkersEEG->isChecked());
+	pt.setValue("downsampling", ui->inp_downsampling->text());
 	pt.endGroup();
 
 	pt.beginGroup("channels");
@@ -82,6 +85,25 @@ void MainWindow::closeEvent(QCloseEvent *ev) {
 		QMessageBox::warning(this, "Recording still running", "Can't quit while recording");
 		ev->ignore();
 	}
+}
+
+template<typename In, typename Out=double, typename Coef=double> std::unique_ptr<firdn::Chain<In>> chain_from_str(QString dsconf, unsigned int nchan) {
+	if(dsconf.isEmpty()) return nullptr;
+	auto splitstep = [](QString part){
+		auto i = part.indexOf(':');
+		if(i==-1) throw std::runtime_error("No ':' found in downsampler config part");
+		return std::make_pair(part.left(i).toUInt(), firdn::coefs_from_file<Coef>(part.mid(i+1).toStdString()));
+	};
+	auto steps = dsconf.split(';');
+	auto stepconf{splitstep(steps.first())};
+	auto res = std::make_unique<firdn::Chain<In>>(firdn::make_downsampler<In, Coef>(
+		stepconf.first, nchan, stepconf.second.data(), stepconf.second.size()));
+	steps.removeFirst();
+	for(auto pt: steps) {
+		stepconf = splitstep(pt);
+		res->add_downsampler(stepconf.first, stepconf.second.data(), stepconf.second.size());
+	}
+	return res;
 }
 
 // start/stop the BrainAmpSeries connection
@@ -116,13 +138,14 @@ void MainWindow::toggleRecording() {
 			conf.lowImpedanceMode = ui->impedanceMode->currentIndex() == 1;
 			conf.resolution = static_cast<ReaderConfig::Resolution>(ui->resolution->currentIndex());
 			conf.dcCoupling = static_cast<unsigned char>(ui->dcCoupling->currentIndex());
-			conf.chunkSize = ui->chunkSize->value();
+			conf.chunkSize = (unsigned int) ui->chunkSize->value();
 			conf.usePolyBox = ui->usePolyBox->checkState() == Qt::Checked;
+			conf.downsampler = chain_from_str<uint16_t, double>(ui->inp_downsampling->text(), conf.channelCount);
 			bool sendRawStream = ui->sendRawStream->isChecked();
 
-			g_unsampledMarkers = ui->unsampledMarkers->checkState() == Qt::Checked;
-			g_sampledMarkers = ui->sampledMarkers->checkState() == Qt::Checked;
-			g_sampledMarkersEEG = ui->sampledMarkersEEG->checkState() == Qt::Checked;
+			conf.g_unsampledMarkers = ui->unsampledMarkers->checkState() == Qt::Checked;
+			conf.g_sampledMarkers = ui->sampledMarkers->checkState() == Qt::Checked;
+			conf.g_sampledMarkersEEG = ui->sampledMarkersEEG->checkState() == Qt::Checked;
 
 			for (auto &label : ui->channelLabels->toPlainText().split('\n'))
 				conf.channelLabels.push_back(label.toStdString());
@@ -131,7 +154,7 @@ void MainWindow::toggleRecording() {
 										 "count device setting.");
 
 			// try to open the device
-			brainamp = std::make_unique<BrainAmpUSB>(conf.deviceNumber);
+			brainamp = std::make_shared<BrainAmpUSB>(conf.deviceNumber);
 
 			// get serial number
 			// auto serialNumber = brainamp->getSerialNumber();
@@ -144,8 +167,6 @@ void MainWindow::toggleRecording() {
 			setup.setDCCoupling(conf.dcCoupling);
 			setup.setLowImpedance(conf.lowImpedanceMode);
 
-			pullUpHiBits = true;
-			pullUpLowBits = true;
 			/*g_pull_dir = (pullUpLowBits ? 0xff : 0) | (pullUpHiBits ? 0xff00 : 0);
 			if (!DeviceIoControl(hDevice, IOCTL_BA_DIGITALINPUT_PULL_UP, &g_pull_dir,
 					sizeof(g_pull_dir), nullptr, 0, &bytes_returned, nullptr))
@@ -157,15 +178,15 @@ void MainWindow::toggleRecording() {
 			// start reader thread
 			shutdown = false;
 			auto function_handle =
-				sendRawStream ? &MainWindow::read_thread<int16_t> : &MainWindow::read_thread<float>;
-			reader.reset(new std::thread(function_handle, this, conf));
+				sendRawStream ? &read_thread<int16_t> : &read_thread<float>;
+			reader = std::make_unique<std::thread>(function_handle, conf, brainamp, std::ref(shutdown));
 		}
 
 		catch (std::exception &e) {
 			std::string msg{e.what()};
 			if (brainamp) msg += brainamp->getErrorState();
 
-			// try to decode the error message
+			 try to decode the error message
 			/*
 			const char *msg = "Could not open USB device.";
 			if (hDevice != nullptr) {
@@ -193,14 +214,14 @@ void MainWindow::toggleRecording() {
 }
 
 // background data reader thread
-template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
+template <typename T> void read_thread(const ReaderConfig conf, std::shared_ptr<BrainAmpUSB> brainamp, std::atomic<bool>& shutdown) {
 	const float unit_scales[] = {0.1f, 0.5f, 10.f, 152.6f};
 	const char *unit_strings[] = {"100 nV", "500 nV", "10 muV", "152.6 muV"};
 	const bool sendRawStream = std::is_same<T, int16_t>::value;
 	// reserve buffers to receive and send data
 	unsigned int chunk_words = conf.chunkSize * (conf.channelCount + 1);
 	std::vector<int16_t> recv_buffer(chunk_words, 0);
-	unsigned int outbufferChannelCount = conf.channelCount + (g_sampledMarkersEEG ? 1 : 0);
+	unsigned int outbufferChannelCount = conf.channelCount + (conf.g_sampledMarkersEEG ? 1 : 0);
 	std::vector<T> send_buffer(conf.chunkSize * outbufferChannelCount, 0);
 
 	std::vector<std::string> marker_buffer(conf.chunkSize, std::string());
@@ -226,7 +247,7 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 				.append_child_value("type", "EEG")
 				.append_child_value("unit", "microvolts")
 				.append_child_value("scaling_factor", postprocessing_factor);
-		if (g_sampledMarkersEEG) {
+		if (conf.g_sampledMarkersEEG) {
 			channels.append_child("channel")
 				.append_child_value("label", "triggerStream")
 				.append_child_value("type", "EEG")
@@ -251,14 +272,14 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 		//// create marker streaminfo and outlet
 		// create unsampled marker streaminfo and outlet
 
-		if (g_unsampledMarkers) {
+		if (conf.g_unsampledMarkers) {
 			lsl::stream_info marker_info(streamprefix + "-Markers", "Markers", 1, 0, lsl::cf_string,
 				streamprefix + '_' + std::to_string(conf.serialNumber) + "_markers");
 			marker_outlet.reset(new lsl::stream_outlet(marker_info));
 		}
 
 		// create sampled marker streaminfo and outlet
-		if (g_sampledMarkers) {
+		if (conf.g_sampledMarkers) {
 			lsl::stream_info marker_info(streamprefix + "-Sampled-Markers", "sampledMarkers", 1,
 				sampling_rate, lsl::cf_string,
 				streamprefix + '_' + std::to_string(conf.serialNumber) + "_sampled_markers");
@@ -281,15 +302,15 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 					*sendbuf_it++ = *recvbuf_it++ * scale;
 
 				mrkr = (uint16_t)*recvbuf_it++;
-				mrkr ^= g_pull_dir;
+				mrkr ^= conf.g_pull_dir;
 				trigger_buffer[s] = mrkr;
 
-				if (g_sampledMarkersEEG)
+				if (conf.g_sampledMarkersEEG)
 					*sendbuf_it++ = (mrkr == prev_mrkr ? 0.0 : static_cast<T>(mrkr));
 
-				if (g_sampledMarkers || g_unsampledMarkers) {
+				if (conf.g_sampledMarkers || conf.g_unsampledMarkers) {
 					s_mrkr = mrkr == prev_mrkr ? "" : std::to_string(mrkr);
-					if (mrkr != prev_mrkr && g_unsampledMarkers)
+					if (mrkr != prev_mrkr && conf.g_unsampledMarkers)
 						marker_outlet->push_sample(
 							&s_mrkr, now + (s + 1 - conf.chunkSize) / sampling_rate);
 					marker_buffer.at(s) = s_mrkr;
@@ -300,7 +321,7 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 			// push data chunk into the outlet
 			data_outlet.push_chunk_multiplexed(send_buffer, now);
 
-			if (g_sampledMarkers) s_marker_outlet->push_chunk_multiplexed(marker_buffer, now);
+			if (conf.g_sampledMarkers) s_marker_outlet->push_chunk_multiplexed(marker_buffer, now);
 		}
 	} catch (std::exception &e) {
 		// any other error

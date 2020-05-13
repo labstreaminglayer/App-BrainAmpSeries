@@ -134,14 +134,14 @@ PO10 </string>
            </property>
           </widget>
          </item>
-         <item row="4" column="0">
+         <item row="5" column="0">
           <widget class="QLabel" name="label_impedance">
            <property name="text">
             <string>Impedance Mode</string>
            </property>
           </widget>
          </item>
-         <item row="4" column="1">
+         <item row="5" column="1">
           <widget class="QComboBox" name="impedanceMode">
            <property name="toolTip">
             <string>The default setting is to operate in high-impedance mode (less need for perfect electrode contact)</string>
@@ -158,14 +158,14 @@ PO10 </string>
            </item>
           </widget>
          </item>
-         <item row="5" column="0">
+         <item row="6" column="0">
           <widget class="QLabel" name="label_resultion">
            <property name="text">
             <string>Resolution</string>
            </property>
           </widget>
          </item>
-         <item row="5" column="1">
+         <item row="6" column="1">
           <widget class="QComboBox" name="resolution">
            <property name="toolTip">
             <string>Resolution of the measured signal</string>
@@ -192,14 +192,14 @@ PO10 </string>
            </item>
           </widget>
          </item>
-         <item row="6" column="0">
+         <item row="7" column="0">
           <widget class="QLabel" name="label_dc">
            <property name="text">
             <string>DC Coupling</string>
            </property>
           </widget>
          </item>
-         <item row="6" column="1">
+         <item row="7" column="1">
           <widget class="QComboBox" name="dcCoupling">
            <property name="toolTip">
             <string>The default is AC</string>
@@ -216,11 +216,8 @@ PO10 </string>
            </item>
           </widget>
          </item>
-         <item row="7" column="0">
+         <item row="8" column="0">
           <widget class="QCheckBox" name="usePolyBox">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
            <property name="toolTip">
             <string>If this is checked then the first 8 channels will hold the polybox signals; make sure to increase your channel count appropriately.</string>
            </property>
@@ -229,7 +226,7 @@ PO10 </string>
            </property>
           </widget>
          </item>
-         <item row="8" column="0" colspan="2">
+         <item row="9" column="0" colspan="2">
           <widget class="QCheckBox" name="sendRawStream">
            <property name="text">
             <string>Send Raw Stream (int16_t)</string>
@@ -253,6 +250,16 @@ PO10 </string>
            </property>
           </widget>
          </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_downsampling">
+           <property name="text">
+            <string>Downsampling</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QLineEdit" name="inp_downsampling"/>
+         </item>
         </layout>
        </widget>
       </item>
@@ -260,12 +267,6 @@ PO10 </string>
        <spacer name="verticalSpacer">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
         </property>
        </spacer>
       </item>
@@ -309,12 +310,6 @@ PO10 </string>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
          </spacer>
         </item>
         <item>
@@ -335,7 +330,7 @@ PO10 </string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>528</width>
+     <width>576</width>
      <height>30</height>
     </rect>
    </property>
@@ -392,5 +387,22 @@ PO10 </string>
   <tabstop>linkButton</tabstop>
  </tabstops>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>channelLabels</sender>
+   <signal>blockCountChanged(int)</signal>
+   <receiver>channelCount</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>141</x>
+     <y>318</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>469</x>
+     <y>162</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
