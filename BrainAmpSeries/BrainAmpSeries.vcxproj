@@ -166,7 +166,8 @@ echo F| xcopy /y "C:\Users\David.Medine\LSL\bin\liblsl64-debug.dll" "$(SolutionD
       <AdditionalDependencies>liblsl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>mkdir "$(SolutionDir)bin\$(Platform)\$(Configuration)\platforms"
+      <Command>
+mkdir "$(SolutionDir)bin\$(Platform)\$(Configuration)\platforms"
 echo F| xcopy /y "C:\Qt\Qt5.13.1\5.13.1\msvc2017\plugins\platforms\qwindows.dll" "$(SolutionDir)bin\$(Platform)\$(Configuration)\platforms\qwindows.dll"
 echo F| xcopy /y "C:\Qt\Qt5.13.1\5.13.1\msvc2017\bin\Qt5Core.dll" "$(SolutionDir)bin\$(Platform)\$(Configuration)\Qt5Core.dll"
 echo F| xcopy /y "C:\Qt\Qt5.13.1\5.13.1\msvc2017\bin\Qt5Gui.dll" "$(SolutionDir)bin\$(Platform)\$(Configuration)\Qt5Gui.dll"

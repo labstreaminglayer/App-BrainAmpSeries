@@ -16,7 +16,7 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QHBoxLayout" name="horizontalLayout_2">
     <item>
-     <widget class="QGroupBox" name="groupBox_2">
+     <widget class="QGroupBox" name="channelLabelsGroup">
       <property name="title">
        <string>Channel Labels</string>
       </property>
@@ -59,13 +59,23 @@ PO10 </string>
          </property>
         </widget>
        </item>
+       <item row="1" column="0">
+        <widget class="QCheckBox" name="overwriteChannelLabels">
+         <property name="text">
+          <string>Overwrite Channel Labels</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
     </item>
     <item>
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
-       <widget class="QGroupBox" name="groupBox">
+       <widget class="QGroupBox" name="deviceSettingsGroup">
         <property name="title">
          <string>Device Settings</string>
         </property>
@@ -105,6 +115,9 @@ PO10 </string>
            <property name="toolTip">
             <string>This must match the number of entries in the channel list</string>
            </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
            <property name="minimum">
             <number>1</number>
            </property>
@@ -138,6 +151,16 @@ PO10 </string>
             <number>32</number>
            </property>
           </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="label_7">
+           <property name="text">
+            <string>Sampling Rate</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QComboBox" name="cbSamplingRate"/>
          </item>
          <item row="4" column="0">
           <widget class="QLabel" name="label_3">
@@ -241,16 +264,6 @@ PO10 </string>
            </property>
           </widget>
          </item>
-         <item row="3" column="1">
-          <widget class="QComboBox" name="cbSamplingRate"/>
-         </item>
-         <item row="3" column="0">
-          <widget class="QLabel" name="label_7">
-           <property name="text">
-            <string>Sampling Rate</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </widget>
       </item>
@@ -268,7 +281,7 @@ PO10 </string>
        </spacer>
       </item>
       <item>
-       <widget class="QGroupBox" name="trigger_box">
+       <widget class="QGroupBox" name="triggerSettingsGroup">
         <property name="toolTip">
          <string>For an explanation of trigger marker types please read 'explanation_of_trigger_marker_types.pdf</string>
         </property>
@@ -276,17 +289,37 @@ PO10 </string>
          <string>LSL Trigger Output Style</string>
         </property>
         <layout class="QFormLayout" name="formLayout_2">
-         <item row="0" column="0">
-          <widget class="QCheckBox" name="unsampledMarkers">
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_8">
+           <property name="text">
+            <string>EEG Channel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QCheckBox" name="sampledMarkersEEG">
+           <property name="layoutDirection">
+            <enum>Qt::LeftToRight</enum>
+           </property>
+           <property name="text">
+            <string>(check)</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_9">
            <property name="text">
             <string>Unsampled String Markers</string>
            </property>
           </widget>
          </item>
-         <item row="2" column="0">
-          <widget class="QCheckBox" name="sampledMarkersEEG">
+         <item row="1" column="1">
+          <widget class="QCheckBox" name="unsampledMarkers">
+           <property name="layoutDirection">
+            <enum>Qt::LeftToRight</enum>
+           </property>
            <property name="text">
-            <string>Floating Point EEG Channel</string>
+            <string>(check)</string>
            </property>
           </widget>
          </item>
@@ -339,7 +372,14 @@ PO10 </string>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
+   <widget class="QMenu" name="menuAbout">
+    <property name="title">
+     <string>About</string>
+    </property>
+    <addaction name="actionVersions"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuAbout"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionLoad_Configuration">
@@ -363,6 +403,11 @@ PO10 </string>
     <string>Ctrl+Q</string>
    </property>
   </action>
+  <action name="actionVersions">
+   <property name="text">
+    <string>Versions</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <tabstops>
@@ -374,8 +419,6 @@ PO10 </string>
   <tabstop>resolution</tabstop>
   <tabstop>dcCoupling</tabstop>
   <tabstop>usePolyBox</tabstop>
-  <tabstop>unsampledMarkers</tabstop>
-  <tabstop>sampledMarkersEEG</tabstop>
   <tabstop>linkButton</tabstop>
  </tabstops>
  <resources/>

@@ -37,19 +37,7 @@ public:
 			m_pdA = obj.m_pdA;
 			m_pdB = obj.m_pdB;
 			m_pdZ = obj.m_pdZ;
-			//m_pdA.reserve(m_nFilterOrder + 1);
-			//m_pdB.reserve(m_nFilterOrder + 1);
-			//m_pdZ.reserve(m_nFilterOrder + 1);
-			//m_pdA.resize(m_nFilterOrder + 1, 0);
-			//m_pdB.resize(m_nFilterOrder + 1, 0);
-			//m_pdZ.resize(m_nFilterOrder + 1, 0);
-	/*		m_pdA = (double*)malloc(sizeof(double) * (m_nFilterOrder + 1));
-			m_pdB = (double*)malloc(sizeof(double) * (m_nFilterOrder + 1));
-			m_pdZ = (double*)malloc(sizeof(double) * m_nFilterOrder);
-			memcpy(m_pdA, obj.m_pdA, sizeof(double) * (m_nFilterOrder + 1));
-			memcpy(m_pdB, obj.m_pdB, sizeof(double) * (m_nFilterOrder + 1));
-			memcpy(m_pdZ, obj.m_pdZ, sizeof(double) * m_nFilterOrder);
-	*/		m_dXi = obj.m_dXi;
+			m_dXi = obj.m_dXi;
 			m_dYi = obj.m_dYi;
 			m_bIsInitialized = true;
 		}
@@ -86,9 +74,6 @@ public:
 		m_pdA.resize(m_nFilterOrder + 1, 0);
 		m_pdB.resize(m_nFilterOrder + 1, 0);
 		m_pdZ.resize(m_nFilterOrder + 1, 0);
-		//m_pdA = (double*)malloc(sizeof(double) * (m_nFilterOrder + 1));
-		//m_pdB = (double*)malloc(sizeof(double) * (m_nFilterOrder + 1));
-		//m_pdZ = (double*)malloc(sizeof(double) * (m_nFilterOrder));
 
 		int i;
 		for (i = 0; i < m_nFilterOrder; i++)
@@ -106,23 +91,7 @@ public:
 
 	~DigitalFilter()
 	{
-		//if (m_pdB != NULL)
-		//{
-		//	free(m_pdB);
-		//	m_pdB = NULL;
-		//}
 
-		//if (m_pdA != NULL)
-		//{
-		//	free(m_pdA);
-		//	m_pdA = NULL;
-		//}
-
-		//if (m_pdZ != NULL)
-		//{
-		//	free(m_pdZ);
-		//	m_pdZ = NULL;
-		//}
 	}
 };
 
@@ -154,15 +123,10 @@ private:
 		m_ptDataOut.reserve(m_nChunkLen);
 		m_ptFilteredSignal.resize(m_nChunkLen * m_nDownsamplingFactor, 0);
 		m_ptDataOut.resize(m_nChunkLen,0);
-		/*size_t sz = sizeof(T);
-		if (m_bFilterSignal)
-		{
-			m_ptFilteredSignal = (T*)malloc(sz * m_nChunkLen * m_nDownsamplingFactor);
-		}
-		m_ptDataOut = (T*)malloc(sizeof(T) * m_nChunkLen);*/
+
 	}
 public:
-	//T* m_ptDataOut = NULL;
+	
 	std::vector<T> m_ptDataOut;
 	Downsampler() {}
 	Downsampler(int nDownsamplingFactor, int nChunkLen, bool bFilterSignal = true)
