@@ -494,7 +494,7 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 			//	*inter_it++ = *(recvbuf_it + (conf.channelCount + s * (conf.channelCount + 1)));
 			//downsamplers[conf.channelCount].Downsample(&inter_buffer[0]);
 
-			for (unsigned int s = 0; s < conf.chunkSize; s++)
+			for (int s = 0; s < conf.chunkSize; s++)
 			{
 				mrkr = (uint16_t)downsamplers[conf.channelCount].m_ptDataOut[s];
 				mrkr ^= m_nPullDir;
@@ -509,8 +509,10 @@ template <typename T> void MainWindow::read_thread(const ReaderConfig conf) {
 					if (mrkr != prev_mrkr)
 					{
 						s_mrkr = std::to_string((int)mrkr);
-						std::string mrkr_out = std::to_string((int)mrkr);
-						marker_outlet->push_sample(&mrkr_out, now + (double)(s + 1 - conf.chunkSize) / sampling_rate);
+						int num = s + 1 - conf.chunkSize;
+						double dNum = (double)num;
+						double ts = dNum / sampling_rate;
+						marker_outlet->push_sample(&s_mrkr, now + ts);//(double)(s + 1 - conf.chunkSize) / sampling_rate);
 					}
 				}
 				prev_mrkr = mrkr;
