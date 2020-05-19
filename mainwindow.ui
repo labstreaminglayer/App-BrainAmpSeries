@@ -2,22 +2,31 @@
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>562</width>
+    <height>595</height>
+   </rect>
+  </property>
   <property name="windowTitle">
    <string>BrainAmpSeries Connector</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="mainwindow.qrc">
+    <normaloff>:/BrainAmpSeries.ico</normaloff>:/BrainAmpSeries.ico</iconset>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QHBoxLayout" name="horizontalLayout_2">
     <item>
-     <widget class="QGroupBox" name="groupBox_2">
+     <widget class="QGroupBox" name="channelLabelsGroup">
       <property name="title">
        <string>Channel Labels</string>
       </property>
       <layout class="QGridLayout" name="gridLayout">
        <item row="0" column="0">
         <widget class="QPlainTextEdit" name="channelLabels">
-         <property name="tabChangesFocus">
-          <bool>true</bool>
-         </property>
          <property name="plainText">
           <string>Fp1
 Fp2
@@ -54,13 +63,23 @@ PO10 </string>
          </property>
         </widget>
        </item>
+       <item row="1" column="0">
+        <widget class="QCheckBox" name="overwriteChannelLabels">
+         <property name="text">
+          <string>Overwrite Channel Labels</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
     </item>
     <item>
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
-       <widget class="QGroupBox" name="groupBox">
+       <widget class="QGroupBox" name="deviceSettingsGroup">
         <property name="title">
          <string>Device Settings</string>
         </property>
@@ -135,13 +154,23 @@ PO10 </string>
           </widget>
          </item>
          <item row="3" column="0">
-          <widget class="QLabel" name="label_impedance">
+          <widget class="QLabel" name="label_7">
+           <property name="text">
+            <string>Sampling Rate</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QComboBox" name="cbSamplingRate"/>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_3">
            <property name="text">
             <string>Impedance Mode</string>
            </property>
           </widget>
          </item>
-         <item row="3" column="1">
+         <item row="4" column="1">
           <widget class="QComboBox" name="impedanceMode">
            <property name="toolTip">
             <string>The default setting is to operate in high-impedance mode (less need for perfect electrode contact)</string>
@@ -158,14 +187,14 @@ PO10 </string>
            </item>
           </widget>
          </item>
-         <item row="4" column="0">
-          <widget class="QLabel" name="label_resultion">
+         <item row="5" column="0">
+          <widget class="QLabel" name="label_resolution">
            <property name="text">
             <string>Resolution</string>
            </property>
           </widget>
          </item>
-         <item row="4" column="1">
+         <item row="5" column="1">
           <widget class="QComboBox" name="resolution">
            <property name="toolTip">
             <string>Resolution of the measured signal</string>
@@ -192,14 +221,14 @@ PO10 </string>
            </item>
           </widget>
          </item>
-         <item row="5" column="0">
+         <item row="6" column="0">
           <widget class="QLabel" name="label_dc">
            <property name="text">
             <string>DC Coupling</string>
            </property>
           </widget>
          </item>
-         <item row="5" column="1">
+         <item row="6" column="1">
           <widget class="QComboBox" name="dcCoupling">
            <property name="toolTip">
             <string>The default is AC</string>
@@ -216,7 +245,7 @@ PO10 </string>
            </item>
           </widget>
          </item>
-         <item row="6" column="0">
+         <item row="7" column="0">
           <widget class="QCheckBox" name="usePolyBox">
            <property name="enabled">
             <bool>true</bool>
@@ -229,7 +258,7 @@ PO10 </string>
            </property>
           </widget>
          </item>
-         <item row="7" column="0" colspan="2">
+         <item row="8" column="0" colspan="2">
           <widget class="QCheckBox" name="sendRawStream">
            <property name="text">
             <string>Send Raw Stream (int16_t)</string>
@@ -253,32 +282,35 @@ PO10 </string>
        </spacer>
       </item>
       <item>
-       <widget class="QGroupBox" name="trigger_box">
+       <widget class="QGroupBox" name="triggerSettingsGroup">
         <property name="toolTip">
          <string>For an explanation of trigger marker types please read 'explanation_of_trigger_marker_types.pdf</string>
         </property>
         <property name="title">
          <string>LSL Trigger Output Style</string>
         </property>
-        <layout class="QFormLayout" name="formLayout_2">
-         <item row="0" column="0">
+        <layout class="QVBoxLayout" name="verticalLayout_2">
+         <item>
           <widget class="QCheckBox" name="unsampledMarkers">
            <property name="text">
             <string>Unsampled String Markers</string>
            </property>
           </widget>
          </item>
-         <item row="1" column="0">
-          <widget class="QCheckBox" name="sampledMarkers">
+         <item>
+          <widget class="QCheckBox" name="sampledMarkersEEG">
+           <property name="layoutDirection">
+            <enum>Qt::LeftToRight</enum>
+           </property>
            <property name="text">
-            <string>Sampled String Markers</string>
+            <string>EEG Channel</string>
            </property>
           </widget>
          </item>
-         <item row="3" column="0">
-          <widget class="QCheckBox" name="sampledMarkersEEG">
+         <item>
+          <widget class="QLabel" name="label_8">
            <property name="text">
-            <string>Floating Point EEG Channel</string>
+            <string/>
            </property>
           </widget>
          </item>
@@ -318,7 +350,7 @@ PO10 </string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>524</width>
+     <width>562</width>
      <height>30</height>
     </rect>
    </property>
@@ -331,7 +363,14 @@ PO10 </string>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
+   <widget class="QMenu" name="menuAbout">
+    <property name="title">
+     <string>About</string>
+    </property>
+    <addaction name="actionVersions"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuAbout"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionLoad_Configuration">
@@ -358,6 +397,11 @@ PO10 </string>
     <string>Ctrl+Q</string>
    </property>
   </action>
+  <action name="actionVersions">
+   <property name="text">
+    <string>Versions</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <tabstops>
@@ -369,11 +413,10 @@ PO10 </string>
   <tabstop>resolution</tabstop>
   <tabstop>dcCoupling</tabstop>
   <tabstop>usePolyBox</tabstop>
-  <tabstop>unsampledMarkers</tabstop>
-  <tabstop>sampledMarkers</tabstop>
-  <tabstop>sampledMarkersEEG</tabstop>
   <tabstop>linkButton</tabstop>
  </tabstops>
- <resources/>
+ <resources>
+  <include location="mainwindow.qrc"/>
+ </resources>
  <connections/>
 </ui>

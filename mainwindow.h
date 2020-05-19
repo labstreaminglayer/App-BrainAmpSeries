@@ -14,10 +14,22 @@ using ULONG = unsigned long;
 
 struct ReaderConfig {
 	int deviceNumber;
-	enum Resolution : uint8_t { V_100nV = 0, V_500nV = 1, V_10microV = 2, V_152microV = 3 } resolution;
+	enum Resolution : uint8_t {
+		V_100nV = 0,
+		V_500nV = 1,
+		V_10microV = 2,
+		V_152microV = 3
+	} resolution;
 	bool dcCoupling, usePolyBox, lowImpedanceMode;
 	unsigned int chunkSize, channelCount, serialNumber;
 	std::vector<std::string> channelLabels;
+};
+
+struct t_AppVersion
+{
+	int32_t Major;
+	int32_t Minor;
+	int32_t Bugfix;
 };
 
 namespace Ui {
@@ -34,6 +46,10 @@ private slots:
 	void closeEvent(QCloseEvent *ev) override;
 	// start the BrainAmpSeries connection
 	void toggleRecording();
+	void VersionsDialog();
+	void UpdateChannelLabels();
+	void UpdateChannelLabelsGUI(int);
+	void setSamplingRate();
 
 private:
 	// function for loading / saving the config file
@@ -46,16 +62,15 @@ private:
 	void load_config(const QString &filename);
 	void save_config(const QString &filename);
 	std::unique_ptr<std::thread> reader{nullptr};
-	HANDLE hDevice{nullptr};
+	HANDLE m_hDevice{nullptr};
 
-	bool g_unsampledMarkers{false};
-	bool g_sampledMarkers{true};
-	bool g_sampledMarkersEEG{false};
-
-	bool pullUpHiBits;
-	bool pullUpLowBits;
-	uint16_t g_pull_dir;
-
+	bool m_bUnsampledMarkers{false};
+	bool m_bSampledMarkersEEG{false};
+	bool m_bOverrideAutoUpdate;
+	bool m_bPullUpHiBits;
+	bool m_bPullUpLowBits;
+	uint16_t m_nPullDir;
+	t_AppVersion m_AppVersion;
 	Ui::MainWindow *ui;
 	std::atomic<bool> shutdown{false}; // flag indicating whether the recording thread should quit
 };

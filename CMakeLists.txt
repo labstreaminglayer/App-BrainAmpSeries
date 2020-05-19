@@ -12,11 +12,14 @@ find_package(Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Threads REQUIRED)
 
 add_executable(${PROJECT_NAME} MACOSX_BUNDLE WIN32
+	downsampler.cpp
+	downsampler.h
 	main.cpp
 	mainwindow.cpp
 	mainwindow.h
 	mainwindow.ui
 	BrainAmpIoCtl.h
+	mainwindow.qrc
 )
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE

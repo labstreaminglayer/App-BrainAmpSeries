@@ -2,3 +2,11 @@ ui_*.h
 /build*/
 /CMakeLists.txt.user
 /CMakeLists.json
+*.dll
+*.exe
+*.bit
+*.aps
+.vs
+bin
+Debug
+Release
