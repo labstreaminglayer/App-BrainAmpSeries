@@ -37,10 +37,9 @@ public:
 
 	DigitalFilter(int nOrder, int nBlockLen, double *pdB, double *pdA, double *pdZ)
 		: m_nFilterOrder(nOrder), m_nFilterBlockLen(nBlockLen), m_pdB(pdB, pdB + nOrder + 1),
-		  m_pdA(pdA != nullptr ? Vec(pdA, pdA + nOrder) : Vec(nOrder + 1, 0.0)),
+		  m_pdA(pdA != nullptr ? Vec(pdA, pdA + nOrder + 1) : Vec(nOrder + 1, 0.0)),
 		  m_pdZ(pdZ != nullptr ? Vec(pdZ, pdZ + nOrder) : Vec(nOrder + 1, 0.0)) {
 		if (pdA == nullptr) m_pdA[0] = 1;
-		m_pdA.resize(m_nFilterOrder + 1, 0.);
 		m_pdZ.resize(m_nFilterOrder + 1, 0.);
 	}
 };
