@@ -176,6 +176,7 @@ echo F| xcopy /y "$(SolutionDir)..\BrainAmpSeries.cfg" "$(SolutionDir)bin\$(Plat
 echo F| xcopy /y "C:\Users\David.Medine\LSL\bin\liblsl32.dll" "$(SolutionDir)bin\$(Platform)\$(Configuration)\liblsl32.dll"
 echo F| xcopy /y "$(SolutionDir)..\explanation_of_trigger_marker_types.pdf" "$(SolutionDir)bin\$(Platform)\$(Configuration)\explanation_of_trigger_marker_types.pdf"
 echo F| xcopy /y "$(SolutionDir)..\LICENSE.txt" "$(SolutionDir)bin\$(Platform)\$(Configuration)\LICENSE.txt"
+echo F| xcopy /y "$(SolutionDir)..\release_notes.txt" "$(SolutionDir)bin\$(Platform)\$(Configuration)\release_notes.txt"
 mkdir "$(SolutionDir)bin\$(Platform)\BrainAmpSeries_Win32"
 xcopy /y /s  "$(SolutionDir)bin\$(Platform)\$(Configuration)" "$(SolutionDir)bin\$(Platform)\BrainAmpSeries_Win32"</Command>
     </PostBuildEvent>
@@ -206,6 +207,7 @@ echo F| xcopy /y "$(SolutionDir)..\BrainAmpSeries.cfg" "$(SolutionDir)bin\$(Plat
 echo F| xcopy /y "C:\Users\David.Medine\LSL\bin\liblsl64.dll" "$(SolutionDir)bin\$(Platform)\$(Configuration)\liblsl64.dll"
 echo F| xcopy /y "$(SolutionDir)..\explanation_of_trigger_marker_types.pdf" "$(SolutionDir)bin\$(Platform)\$(Configuration)\explanation_of_trigger_marker_types.pdf"
 echo F| xcopy /y "$(SolutionDir)..\LICENSE.txt" "$(SolutionDir)bin\$(Platform)\$(Configuration)\LICENSE.txt"
+echo F| xcopy /y "$(SolutionDir)..\release_notes.txt" "$(SolutionDir)bin\$(Platform)\$(Configuration)\release_notes.txt"
 mkdir "$(SolutionDir)bin\$(Platform)\BrainAmpSeries_x64"
 xcopy /y /s  "$(SolutionDir)bin\$(Platform)\$(Configuration)" "$(SolutionDir)bin\$(Platform)\BrainAmpSeries_x64"</Command>
     </PostBuildEvent>
