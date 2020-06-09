@@ -17,7 +17,7 @@ struct ReaderConfig
 	int deviceNumber;
 	enum Resolution : uint8_t { V_100nV = 0, V_500nV = 1, V_10microV = 2, V_152microV = 3 } resolution;
 	bool dcCoupling, usePolyBox, lowImpedanceMode;
-	unsigned int chunkSize, channelCount, serialNumber;
+	int chunkSize, channelCount, serialNumber;
 	std::vector<std::string> channelLabels;
 };
 

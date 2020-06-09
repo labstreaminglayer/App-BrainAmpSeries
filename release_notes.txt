@@ -1,0 +1,4 @@
+BrainAmp Series Connector v.1.13.0
+-adapted to GUI to conformt to actiCHamp and LiveAmp style
+--automatic channel labeling
+-fixed Marker bug related to non-negative indexing in timestamp calculation
