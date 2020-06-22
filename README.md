@@ -6,11 +6,11 @@ To download, please click the Release tab above for the latest versions.
 Please note that you may need to install the Microsoft C++ redistributable packages ([here](https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads)) in order to run the executables.
 
 # Getting Started
-If you are new to using LSL, you might want to read the ([Quick Start guide](https://labstreaminglayer.readthedocs.io/info/getting_started.html)) on the LabStreamingLayer main repository. 
+If you are new to using LSL, you might want to read the [Quick Start guide](https://labstreaminglayer.readthedocs.io/info/getting_started.html) on the LabStreamingLayer main repository. 
 
-For measuring impedances, ensuring good signal quality, and troubleshooting basic amplifier functionality, it is always recommended to use ([BrainVision Recorder](https://www.brainproducts.com/downloads.php?kid=2) and to consult the amplifier manual.
+For measuring impedances, ensuring good signal quality, and troubleshooting basic amplifier functionality, it is always recommended to use [BrainVision Recorder](https://www.brainproducts.com/downloads.php?kid=2) and to consult the amplifier manual.
 
-You can also find a useful (free) LSL viewer on the Brian Products website: ([BrainVision LSL Viewer](https://www.brainproducts.com/downloads.php?kid=40)).
+You can also find a useful (free) LSL viewer on the Brian Products website: [BrainVision LSL Viewer](https://www.brainproducts.com/downloads.php?kid=40).
 
 # Usage
 
