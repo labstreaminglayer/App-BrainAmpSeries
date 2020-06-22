@@ -5,11 +5,18 @@ To download, please click the Release tab above for the latest versions.
 
 Please note that you may need to install the Microsoft C++ redistributable packages ([here](https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads)) in order to run the executables.
 
+# Getting Started
+If you are new to using LSL, you might want to read the ([Quick Start guide](https://labstreaminglayer.readthedocs.io/info/getting_started.html)) on the LabStreamingLayer main repository. 
+
+For measuring impedances, ensuring good signal quality, and troubleshooting basic amplifier functionality, it is always recommended to use ([BrainVision Recorder](https://www.brainproducts.com/downloads.php?kid=2) and to consult the amplifier manual.
+
+You can also find a useful (free) LSL viewer on the Brian Products website: ([BrainVision LSL Viewer](https://www.brainproducts.com/downloads.php?kid=40)).
+
 # Usage
 
 1. Make sure that you have correctly installed the drivers for your amplifier, and that the amplifier is plugged in, turned on, and batteries are charged (see also official brochure).
   * Start the BrainAmpSeries app. You should see a window like the following.
-> ![braimampseries.png](braimampseries.png)
+> ![brainampseries.png](braimampseries.png)
 
 2. If you have multiple amplifiers plugged in, make sure that you pick the correct one under Device Number (1 is the first one according to USB port numbering). Select the number of channels that you want to record from and enter the channel labels according to your cap design; make sure that the number of channel labels matches the selected number of channels.
 
