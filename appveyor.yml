@@ -15,7 +15,7 @@ install:
 - cmd: appveyor DownloadFile %LSLDIST_URL%/%lsltag%/liblsl-%lslversion%-Win64.7z -FileName liblsl_x64.7z
 - cmd: 7z x liblsl_x64.7z -oLSL
 build_script:
-- cmd: cmake -S . -B build -DQt5_DIR=C:/Qt/%QTVER%/%QTCOMPILER%/lib/cmake/Qt5 -Dlsl_DIR=LSL/ %CMakeArgs%
+- cmd: cmake -S . -B build -DQt5_DIR=C:/Qt/%QTVER%/%QTCOMPILER%/lib/cmake/Qt5 -Dlsl_DIR=LSL/share/LSL %CMakeArgs%
 - cd build
 - cmake --build . --config Release --target install
 - cpack -C Release
