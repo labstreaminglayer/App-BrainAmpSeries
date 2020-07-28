@@ -29,4 +29,5 @@ deploy:
   force_update: true
   draft: false
   prerelease: false
-  appveyor_repo_tag: true
+  on:
+    appveyor_repo_tag: true
