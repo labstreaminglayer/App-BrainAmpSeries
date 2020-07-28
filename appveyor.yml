@@ -21,3 +21,10 @@ build_script:
 - cpack -C Release
 artifacts:
 - path: 'build/*.7z'
+deploy:
+  provider: GitHub
+  auth_token:
+    secure: fbd798bc62c49759b4c3bbfa46cc9caea4f1dc7c
+  force_update: true
+  on:
+    APPVEYOR_REPO_TAG: true
