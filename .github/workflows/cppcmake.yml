@@ -1,0 +1,63 @@
+name: C/C++ CI
+
+on:
+  push:
+    tags:
+    -v*.*
+    
+env:
+  LSL_URL: 'https://github.com/sccn/liblsl/releases/download'
+  LSL_RELEASE_PREFIX: 'v'
+  LSL_RELEASE: '1.13.1'
+  LSL_RELEASE_SUFFIX: ''
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Qt (Windows)
+      uses: jurplel/install-qt-action@v2
+      with:
+        version: 5.15.0
+        
+    - name: Get LSL
+      run: |
+           Invoke-WebRequest -Uri $Env:LSL_URL/$Env:LSL_RELEASE_PREFIX$Env:LSL_RELEASE$Env:LSL_RELEASE_SUFFIX/liblsl-$Env:LSL_RELEASE-Win64.zip -o liblsl.7z
+           7z x liblsl.7z -oLSL
+    
+    - name: configure cmake
+      shell: bash
+      run: |
+        cmake -S . -B build -DQt5_DIR=C:/Qt/%QTVER%/%QTCOMPILER%/lib/cmake/Qt5 -Dlsl_DIR=LSL/share/LSL
+    -name: build
+      run: cmake --build build --config Release --target install
+    
+    -name: package
+      run: cpack -B build -C Release  
+      
+  release:
+    needs: build
+    runs-on: windows-latest
+    steps:
+    -name: download artifacts
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/download-artifact@v2-preview
+      
+#    -name: create release  
+#      if: startsWith(github.ref, 'refs/tags/')
+#      id: create_release
+#      uses: softprops/action-gh-release@v1
+        
+    - name: Upload a Release Asset
+      uses: actions/upload-release-asset@v1.0.2
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        # tag_name: ${{ github.ref }}  # ${{ github.ref }} is default
+        name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+        files: build/*.7z
