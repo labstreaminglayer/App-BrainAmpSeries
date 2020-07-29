@@ -6,8 +6,8 @@ on:
     - v*.*
     
 env:
-  LSL_URL: 'https://github.com/sccn/liblsl/releases/download'
-  LSL_RELEASE_PREFIX: 'v'
+  LSL_URL: 'https://github.com/sccn/liblsl/releases/tag/'
+  LSL_RELEASE_PREFIX: ''
   LSL_RELEASE: '1.13.1'
   LSL_RELEASE_SUFFIX: ''
 
