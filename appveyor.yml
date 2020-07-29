@@ -26,4 +26,5 @@ deploy:
   auth_token: 
     secure: b6713813f023eddaf234c1dbb095771567435c0a
   force_update: true
-  APPVEYOR_REPO_TAG: true
+  on:
+    APPVEYOR_REPO_TAG: true
