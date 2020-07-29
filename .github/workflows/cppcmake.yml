@@ -28,7 +28,7 @@ jobs:
     - name: Get LSL
       run: |
            Invoke-WebRequest -Uri https://github.com/sccn/liblsl/releases/download/1.13.1/liblsl-1.13.1-Win64.zip
-           7z x liblsl$ENV:LSL_RELEASE.7z -oLSL
+           unzip liblsl-$ENV:LSL_RELEASE-Win64.zip -d LSL
     
     - name: configure cmake
       run: |
