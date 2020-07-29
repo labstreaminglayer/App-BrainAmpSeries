@@ -44,7 +44,9 @@ jobs:
       run: |
            cd build
            cpack -C Release  
-            cd ..
+           ls
+           cd ..
+           ls
     - name: create release
       id: create_release
       uses: actions/create-release@v1
@@ -61,11 +63,9 @@ jobs:
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-           ls ./build
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} 
-        asset_path: build/BrainAppSeries-1.14.1-Win64.7z
+        asset_path: build/*.7z
         asset_name: BrainAppSeries-1.14.1-Win64.7z
         asset_content_type: application/7z
       
