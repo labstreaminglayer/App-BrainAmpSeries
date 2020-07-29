@@ -3,7 +3,7 @@ name: C/C++ CI
 on:
   push:
     tags:
-    -v*.*
+    - v*.*
     
 env:
   LSL_URL: 'https://github.com/sccn/liblsl/releases/download'
