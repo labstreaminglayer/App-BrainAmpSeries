@@ -30,13 +30,15 @@ jobs:
     
     - name: configure cmake
       run: |
-        cmake -S . -B build -Dlsl_DIR=LSL/share/LSL
+           cmake -S . -B build -Dlsl_DIR=LSL/share/LSL
         
     -name: build
-      run: cmake --build build --config Release --target install
+      run: |
+           cmake --build build --config Release --target install
     
     -name: package
-      run: cpack -B build -C Release  
+      run: |
+           cpack -B build -C Release  
       
   release:
     needs: build
