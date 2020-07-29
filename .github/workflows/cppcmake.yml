@@ -23,9 +23,11 @@ jobs:
       with:
         version: 5.15.0
         
+        #$Env:LSL_URL/$Env:LSL_RELEASE_PREFIX$Env:LSL_RELEASE$Env:LSL_RELEASE_SUFFIX/liblsl-$Env:LSL_RELEASE-Win64.zip -o liblsl.7z
+           
     - name: Get LSL
       run: |
-           Invoke-WebRequest -Uri $Env:LSL_URL/$Env:LSL_RELEASE_PREFIX$Env:LSL_RELEASE$Env:LSL_RELEASE_SUFFIX/liblsl-$Env:LSL_RELEASE-Win64.zip -o liblsl.7z
+           Invoke-WebRequest -Uri https://github.com/sccn/liblsl/releases/download/1.13.1/liblsl-1.13.1-Win64.zip
            7z x liblsl.7z -oLSL
     
     - name: configure cmake
