@@ -30,5 +30,4 @@ deploy:
   draft: false
   prerelease: false
   on:
-    branch: ci_devel
     APPVEYOR_REPO_TAG: true
