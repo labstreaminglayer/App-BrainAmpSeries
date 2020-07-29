@@ -41,8 +41,10 @@ jobs:
     
     - name: package
       run: |
-           cpack -B build -C Release  
-      
+           cd build
+           cpack -C Release  
+            cd ..
+            
   release:
     needs: build
     runs-on: windows-latest
