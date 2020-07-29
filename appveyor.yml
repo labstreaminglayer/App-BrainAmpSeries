@@ -23,12 +23,8 @@ artifacts:
 - path: 'build/*.7z'
 deploy:
   provider: GitHub
-  appveyor_repo_tag: true
   auth_token: 
     secure: fbd798bc62c49759b4c3bbfa46cc9caea4f1dc7c
   force_update: true
-  draft: false
-  prerelease: false
-  tags: true
-  tag: $(APPVEYOR_REPO_TAG_NAME)
- 
+  on:
+    APPVEYOR_REPO_TAG: true
