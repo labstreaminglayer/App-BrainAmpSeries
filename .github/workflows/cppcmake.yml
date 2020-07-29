@@ -29,9 +29,9 @@ jobs:
            7z x liblsl.7z -oLSL
     
     - name: configure cmake
-      shell: bash
       run: |
-        cmake -S . -B build -DQt5_DIR=C:/Qt/%QTVER%/%QTCOMPILER%/lib/cmake/Qt5 -Dlsl_DIR=LSL/share/LSL
+        cmake -S . -B build -Dlsl_DIR=LSL/share/LSL
+        
     -name: build
       run: cmake --build build --config Release --target install
     
