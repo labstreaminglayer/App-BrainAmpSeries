@@ -8,7 +8,8 @@ on:
 env:
   LSL_URL: 'https://github.com/sccn/liblsl/releases/tag/'
   LSL_RELEASE_PREFIX: ''
-  LSL_RELEASE: '1.13.1'
+  LSL_TAG: '1.13.0-b13'
+  LSL_RELEASE: '1.13.0'
   LSL_RELEASE_SUFFIX: ''
 
 jobs:
@@ -27,8 +28,8 @@ jobs:
            
     - name: Get LSL
       run: |
-           Invoke-WebRequest -Uri https://github.com/sccn/liblsl/releases/download/1.13.1/liblsl-1.13.1-Win64.zip
-           unzip liblsl-$ENV:LSL_RELEASE-Win64.zip -d LSL
+           Invoke-WebRequest -Uri https://github.com/sccn/liblsl/releases/download/1.13.0-b13/liblsl-1.13.0-Win64.7z
+           7z x liblsl-$ENV:LSL_RELEASE-Win64.7x -oLSL
     
     - name: configure cmake
       run: |
