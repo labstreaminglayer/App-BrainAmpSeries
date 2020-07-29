@@ -32,11 +32,11 @@ jobs:
       run: |
            cmake -S . -B build -Dlsl_DIR=LSL/share/LSL
         
-    -name: build
+    - name: build
       run: |
            cmake --build build --config Release --target install
     
-    -name: package
+    - name: package
       run: |
            cpack -B build -C Release  
       
@@ -44,7 +44,7 @@ jobs:
     needs: build
     runs-on: windows-latest
     steps:
-    -name: download artifacts
+    - name: download artifacts
       if: startsWith(github.ref, 'refs/tags/')
       uses: actions/download-artifact@v2-preview
       
